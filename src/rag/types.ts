@@ -56,11 +56,26 @@ export interface ChunkerOptions {
 }
 // configuration options for the hybrid retriever.
 export interface RetrieverOptions {
-    //Number of top chunks to return (default: 3)
+    // Number of top chunks to return (default: 3)
     topk?: number;
-    //Raw cosine similarity treshold for the scope pre-check.
-    // if max cosine is below this and BM25 is 0, query is maked out-of-scope.
+    // CamelCase alias for topk
+    topK?: number;
+    // Raw cosine similarity threshold for the scope pre-check.
+    // If max cosine is below this and BM25 is 0, query is marked out-of-scope.
     // Default: 0.20
     scopeThreshold?: number;
 }
+
+/**
+ * Result returned by the hybrid retrieval engine.
+ */
+export interface RetrievalResult {
+    // Top-k retrieved chunks ranked by normalized RRF score
+    chunks: ScoredChunk[];
+    // True if query was flagged as completely out of scope
+    isOutOfScope: boolean;
+    // Optional explanation or trigger reason
+    reason?: string;
+}
+
 

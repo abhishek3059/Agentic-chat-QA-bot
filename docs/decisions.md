@@ -16,6 +16,8 @@ This document logs every key architectural and engineering decision made in **Ag
 - **ADR-008:** Path-Safe Build Architecture for Paths Containing Ampersands (`&`)
 - **ADR-009:** Separate Prompt Layer (`src/llm/prompt.ts`) Decoupled from Network Fetch
 - **ADR-010:** Safe Git Pushing Standards & GitHub Repository Hygiene
+- **ADR-011:** Stop-Word Filtering in Sub-Tokenized BM25 Keyword Search
+- **ADR-012:** Non-Crashing Native Stubs for Text-Only Transformers Pipelines
 
 ---
 
@@ -137,4 +139,23 @@ This document logs every key architectural and engineering decision made in **Ag
   2. **Zero Binary / Cache Leaks:** Explicit exclusion of `node_modules/`, `out/`, `dist/`, `.vscode-test/`, `*.vsix`, and ONNX model caches.
   3. **Verified Pre-Push Gates:** Mandatory `npm test` and `npm run compile` green test execution prior to staging.
   4. **Open Source Hygiene:** Provide complete `README.md`, `LICENSE` (MIT), and issue/repository links in `package.json`.
+
+---
+
+### ADR-011: Stop-Word Filtering in Sub-Tokenized BM25 Keyword Search
+* **Date:** 2026-09-09
+* **Status:** Accepted
+* **Context:** During unit testing of the scope guardrail, completely unrelated user questions (e.g. *"Who won the 1998 soccer world cup in France?"*) generated false BM25 scores against programming chunks because both contained the common English article *"the"*. This bypassed the scope guardrail.
+* **Decision:** Incorporate a standard stop-word filter (`STOP_WORDS`) within `tokenizeCodeAndProse`.
+* **Rationale:** BM25 keyword matching is strictly designed for domain keywords and identifiers (e.g. `getUserProfile` $\rightarrow$ `['get', 'user', 'profile']`). Stripping high-frequency non-content words guarantees that the scope guardrail only triggers when real domain terminology matches.
+
+---
+
+### ADR-012: Non-Crashing Native Stubs for Text-Only Transformers Pipelines
+* **Date:** 2026-09-09
+* **Status:** Accepted
+* **Context:** `@xenova/transformers` statically imports `sharp` in its image utilities (`utils/image.js`). On modern Node runtimes (such as Node 26) and Windows environments where native node-gyp C++ compilation is avoided, `sharp` throws a fatal module resolution exception even though vision pipelines are never used.
+* **Decision:** Provide a zero-dependency, non-crashing stub for `sharp` in text-only environments.
+* **Rationale:** Keeps the extension 100% portable across developer machines without requiring Visual Studio C++ build tools or Python toolchains.
+
 
