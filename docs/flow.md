@@ -7,64 +7,82 @@
 
 ---
 
-## 1. High-Level Runtime Flow
+## 1. High-Level Runtime Architecture
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Developer
-    participant UI as VS Code / Agent Chat
-    participant CM as CaptureManager (src/captureManager.ts)
-    participant PM as PanelManager (src/ui/panelManager.ts)
-    participant WV as Webview Console (src/ui/webviewHtml.ts)
-    participant CH as Chunker (src/rag/chunker.ts)
-    participant EM as Embedder (src/rag/embedder.ts)
-    participant RT as Retriever (src/rag/retriever.ts)
-    participant PR as PromptEngine (src/llm/prompt.ts)
-    participant GN as Generator (src/llm/generator.ts)
-    participant LLM as OpenAI-Compatible API (OpenRouter/DeepSeek)
-
-    Note over User,UI: PHASE 1: CONTEXT CAPTURE
-    User->>UI: Copies AI Response turn
-    User->>CM: Presses Ctrl+Alt+Q (or clicks Paste / Context Menu)
-    CM->>PM: render(extensionUri, capturedText)
-    PM->>WV: postMessage({ type: 'setContext', preview, stats })
-    
-    Note over PM,EM: PHASE 2: INGESTION & VECTORIZATION
-    PM->>CH: chunkText(capturedText)
-    CH-->>PM: Chunk[] (typed: code | prose | list, <= 200 tokens)
-    PM->>EM: generateEmbeddings(chunks)
-    EM-->>PM: inMemoryVectorCache (chunks + 384d dense vectors)
-    
-    Note over User,WV: PHASE 3: USER ASKS QUESTION
-    User->>WV: Types question & hits Enter
-    WV->>PM: postMessage({ type: 'askQuestion', text: query })
-    PM->>WV: postMessage({ type: 'setLoading', isLoading: true })
-    
-    Note over PM,RT: PHASE 4: SCOPE PRE-CHECK & HYBRID RETRIEVAL
-    PM->>RT: hybridRetrieve(query, chunks, vectors, options)
-    RT->>RT: Cosine Similarity + Sub-tokenized BM25 + RRF Fusion
-    alt Out-of-Scope (Max Cosine < 0.20 and BM25 = 0 and Not Meta-Query)
-        RT-->>PM: { isOutOfScope: true }
-        PM->>WV: postMessage({ type: 'addMessage', role: 'assistant', text: RefusalMessage })
-    else In-Scope
-        RT-->>PM: ScoredChunk[] (Top-K most relevant)
+flowchart TD
+    subgraph S1 ["1. Universal Capture"]
+        A["Developer Copies Text"] --> B["Ctrl+Alt+Q / Paste Button / Context Menu"]
+        B --> C["CaptureManager (src/captureManager.ts)"]
     end
-    
-    Note over PM,LLM: PHASE 5: PROMPT ASSEMBLY & GENERATION
-    PM->>PR: assembleChatMessage(query, topChunks, chatHistory)
-    PR-->>PM: ChatMessage[] (System Constitution + Injected Context + Memory + Query)
-    PM->>GN: generateAnswer(chatMessages)
-    GN->>LLM: fetch('https://openrouter.ai/api/v1/chat/completions')
-    LLM-->>GN: Structured Response (3-Zone Labeled)
-    GN-->>PM: Answer text with citations
-    PM->>WV: postMessage({ type: 'setLoading', isLoading: false })
-    PM->>WV: postMessage({ type: 'addMessage', role: 'assistant', text: answer })
+
+    subgraph S2 ["2. Ingestion & Indexing"]
+        C --> D["Chunker (src/rag/chunker.ts)<br/>Typed chunks <= 200 tokens"]
+        D --> E["Embedder (src/rag/embedder.ts)<br/>all-MiniLM-L6-v2 ONNX (384d)"]
+        D --> F["BM25 Indexer<br/>Sub-tokenized keywords"]
+    end
+
+    subgraph S3 ["3. Hybrid Retrieval & Guardrail"]
+        G["User Submits Question"] --> H["Cosine Similarity + Sub-tokenized BM25"]
+        E & F --> H
+        H --> I{"Scope Pre-Check<br/>Max Cosine < 0.20 & BM25 = 0<br/>& Not Meta-Query?"}
+        I -- Out-of-Scope --> J["Fast Refusal Banner<br/>(0 API Cost)"]
+        I -- In-Scope --> K["Reciprocal Rank Fusion (k=60)<br/>Normalized Top-K Chunks"]
+    end
+
+    subgraph S4 ["4. Grounded Generation"]
+        K --> L["PromptEngine (src/llm/prompt.ts)<br/>3-Tier Instruction Assembly"]
+        L --> M["Generator (src/llm/generator.ts)<br/>OpenRouter / DeepSeek API"]
+        M --> N["3-Zone Labeled Response<br/>[📌 Context] vs [🌐 Expansion]"]
+        N --> O["Webview Console Display"]
+    end
 ```
 
 ---
 
-## 2. Detailed Step-by-Step Execution Traces
+## 2. Interactive Runtime Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer
+    participant UI as Webview Console
+    participant Core as Extension Host & RAG
+    participant LLM as OpenAI API (OpenRouter)
+
+    %% Phase 1: Capture
+    Note over Dev,Core: 1. Universal Context Capture
+    Dev->>Core: Press Ctrl+Alt+Q (or Click Paste Button)
+    Core->>UI: Show Captured Preview & Token Badge
+
+    %% Phase 2: Indexing
+    Note over Core: 2. Ingestion & Vectorization
+    Core->>Core: Structural Chunker (<= 200 tokens)
+    Core->>Core: Generate Local ONNX Embeddings (384d)
+
+    %% Phase 3: Question & Retrieval
+    Note over Dev,Core: 3. Query & Hybrid Retrieval
+    Dev->>UI: Enter Question
+    UI->>Core: postMessage({ type: 'askQuestion', query })
+    Core->>UI: Set Loading State (Spinner)
+    Core->>Core: Sub-tokenized BM25 + Vector Cosine + RRF
+
+    %% Phase 4: Guardrail Check
+    alt Out-of-Scope Query
+        Core->>UI: Render Scope Refusal Banner (Skip API)
+    else In-Scope Query
+        %% Phase 5: Generation
+        Note over Core,LLM: 4. Grounded Generation
+        Core->>Core: Assemble 3-Tier System & Context Prompt
+        Core->>LLM: POST /chat/completions (top-k context)
+        LLM-->>Core: 3-Zone Labeled Response
+        Core->>UI: Render Assistant Message with Citations
+    end
+```
+
+---
+
+## 3. Detailed Step-by-Step Execution Traces
 
 ### Trace A: Universal Context Capture
 1. **Trigger Options:**
@@ -132,7 +150,7 @@ sequenceDiagram
 
 ---
 
-## 3. File-by-File Implementation & Live Completion Status
+## 4. File-by-File Implementation & Live Completion Status
 
 | File Path | Component Layer | Core Responsibility | Current Status |
 |---|---|---|---|
