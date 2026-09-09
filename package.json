@@ -1,0 +1,105 @@
+{
+  "name": "agentic-chat-qa-bot",
+  "displayName": "Agentic Chat Q&A Bot",
+  "description": "Universal Scoped RAG Q&A console for AI agent responses, compatible with VS Code, Antigravity, and Cursor",
+  "version": "0.1.0",
+  "publisher": "agentic-developer",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "contextQa.openPanel",
+        "title": "Context Q&A: Open Agent Console"
+      },
+      {
+        "command": "contextQa.captureClipboard",
+        "title": "Context Q&A: Capture from Clipboard"
+      },
+      {
+        "command": "contextQa.askAboutSelection",
+        "title": "Context Q&A: Ask About Selection"
+      },
+      {
+        "command": "contextQa.simulateCapture",
+        "title": "Context Q&A: Enter Custom Context Text"
+      },
+      {
+        "command": "contextQa.setApiKey",
+        "title": "Context Q&A: Set LLM API Key"
+      },
+      {
+        "command": "contextQa.showLastCapture",
+        "title": "Context Q&A: Show Last Captured Context"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "contextQa.captureClipboard",
+        "key": "ctrl+alt+q",
+        "mac": "cmd+alt+q"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "contextQa.askAboutSelection",
+          "when": "editorHasSelection",
+          "group": "contextQa@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Context Q&A",
+      "properties": {
+        "contextQa.apiBaseUrl": {
+          "type": "string",
+          "default": "https://openrouter.ai/api/v1",
+          "description": "Base URL of OpenAI-compatible API (e.g., OpenRouter or DeepSeek)"
+        },
+        "contextQa.modelName": {
+          "type": "string",
+          "default": "deepseek/deepseek-chat",
+          "description": "Model ID to call for generation (e.g., deepseek/deepseek-chat or free models)"
+        },
+        "contextQa.topK": {
+          "type": "number",
+          "default": 3,
+          "description": "Number of top matching context chunks to retrieve"
+        },
+        "contextQa.maxTokensPerChunk": {
+          "type": "number",
+          "default": 500,
+          "description": "Target token limit per paragraph chunk before sentence re-splitting"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "node ./node_modules/typescript/bin/tsc -p ./",
+    "watch": "node ./node_modules/typescript/bin/tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./node_modules/mocha/bin/mocha.js --require ts-node/register \"test/unit/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@xenova/transformers": "^2.17.2"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.24",
+    "@types/vscode": "^1.85.0",
+    "mocha": "^10.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
