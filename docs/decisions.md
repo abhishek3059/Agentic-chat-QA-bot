@@ -67,7 +67,7 @@ This document logs every key architectural and engineering decision made in **Ag
   - If a code block is $\le 200$ tokens, it remains 100% intact.
   - If an oversized code block exceeds 200 tokens, it splits strictly on statement/newline boundaries with a 2-line overlap, preserving the ```lang header and closing fence on each chunk.
   - Prose paragraphs are split on `\n\s*\n`, falling back to sentence terminators (`. ! ?`) when exceeding 200 tokens.
-* **Rationale:** Guarantees syntax integrity for code, prevents semantic truncation, and stays safely under the 256-token embedding ceiling.
+* **Rationale:** Guarantees syntax integrity for code, prevents semantic truncation, and stays safely under the 256-token embedding ceiling. Full technical breakdown: see [docs/chunking-strategy.md](chunking-strategy.md).
 
 ---
 

@@ -5,8 +5,9 @@
 - **Status:** Active / Engineering Blueprint
 - **Key Modules:** Ingestion, Structural Chunking, In-Memory Hybrid Retrieval, LLM Generation, Webview
 - **Related Live Documents:**
-  - [docs/decisions.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/decisions.md): Architecture Decision Records (ADRs 001–009) with context, options, decisions, and rationale.
+  - [docs/decisions.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/decisions.md): Architecture Decision Records (ADRs 001–012) with context, options, decisions, and rationale.
   - [docs/flow.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/flow.md): End-to-end runtime sequence flow, traces, and file-by-file live implementation tracking.
+  - [docs/chunking-strategy.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/chunking-strategy.md): Detailed specification and algorithmic breakdown of the structural code & markdown chunker.
 
 ---
 

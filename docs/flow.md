@@ -139,6 +139,7 @@ sequenceDiagram
 | [package.json](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/package.json) | Configuration | Extension manifests, commands, keybindings, settings, path-safe scripts | ✅ **COMPLETE** |
 | [tsconfig.json](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/tsconfig.json) | Configuration | Strict TypeScript compiler options | ✅ **COMPLETE** |
 | [README.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/README.md) | Documentation | Public GitHub overview, architecture, quick start, advantages | ✅ **COMPLETE** |
+| [docs/chunking-strategy.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/chunking-strategy.md) | Documentation | Structural code chunking specification & 200-token ceiling rationale | ✅ **COMPLETE** |
 | [LICENSE](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/LICENSE) | Legal | Open-source MIT License | ✅ **COMPLETE** |
 | [.gitignore](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/.gitignore) | Repository Hygiene | Secret isolation, build/ONNX cache exclusion rules | ✅ **COMPLETE** |
 | [src/extension.ts](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/src/extension.ts) | Lifecycle | Extension activation, command registration, lifecycle disposal | ✅ **COMPLETE** |

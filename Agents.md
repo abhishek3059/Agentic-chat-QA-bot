@@ -16,10 +16,11 @@ Before starting work, read the foundational documentation:
 2. **[docs/BUILD.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/BUILD.md):** Toolchains, Engines & Path-Safe Scripts (HOW TO BUILD).
 3. **[docs/ARCHITECTURE.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/ARCHITECTURE.md):** Technical Design, Math Formulations & Data Flow (HOW IT WORKS).
 4. **[docs/decisions.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/decisions.md):** Architecture Decision Records (ADRs) with rationale (WHY IT WAS BUILT THIS WAY).
-5. **[docs/flow.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/flow.md):** End-to-End System & Component Flow with file status tracking (HOW DATA FLOWS).
-6. **[Agents.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/Agents.md):** Rules of Engagement & Code Conventions (HOW TO BEHAVE).
-7. **[docs/PHASES.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/PHASES.md):** Implementation Roadmap & Definition of Done (IN WHAT ORDER).
-8. **[docs/PROGRESS.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/PROGRESS.md):** Append-Only Session Memory & Decision Logbook (WHAT HAPPENED).
+5. **[docs/chunking-strategy.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/chunking-strategy.md):** Structural Markdown & Code Chunking Strategy & 200-Token Safety Ceiling.
+6. **[docs/flow.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/flow.md):** End-to-End System & Component Flow with file status tracking (HOW DATA FLOWS).
+7. **[Agents.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/Agents.md):** Rules of Engagement & Code Conventions (HOW TO BEHAVE).
+8. **[docs/PHASES.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/PHASES.md):** Implementation Roadmap & Definition of Done (IN WHAT ORDER).
+9. **[docs/PROGRESS.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/PROGRESS.md):** Append-Only Session Memory & Decision Logbook (WHAT HAPPENED).
 
 ## Commands
 - Install: `npm install`

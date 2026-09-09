@@ -203,7 +203,8 @@ The repository contains comprehensive technical documentation:
 
 - 📋 **[docs/PRD.md](docs/PRD.md):** Product Requirements, User Personas, and Core User Scenarios.
 - 📐 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):** Detailed Technical Design, Math Formulations, and Data Flow.
-- 📝 **[docs/decisions.md](docs/decisions.md):** Architecture Decision Records (ADRs 001–009) with trade-offs and rationale.
+- 🧩 **[docs/chunking-strategy.md](docs/chunking-strategy.md):** Structural Markdown & Code Chunking Strategy & 200-Token Safety Ceiling.
+- 📝 **[docs/decisions.md](docs/decisions.md):** Architecture Decision Records (ADRs 001–012) with trade-offs and rationale.
 - 🔄 **[docs/flow.md](docs/flow.md):** Complete Runtime Sequence Flow, Execution Traces, and Live Status Matrix.
 - 🛠️ **[docs/BUILD.md](docs/BUILD.md):** Toolchain, Engine Compatibility, and Path-Safe Build Scripts.
 - 📜 **[Agents.md](Agents.md):** Rules of Engagement, Code Conventions, and Collaboration Guidelines.
