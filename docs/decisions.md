@@ -15,6 +15,7 @@ This document logs every key architectural and engineering decision made in **Ag
 - **ADR-007:** 3-Tier Instruction Hierarchy & OpenAI Role Mapping (`system`, `assistant`, `user`)
 - **ADR-008:** Path-Safe Build Architecture for Paths Containing Ampersands (`&`)
 - **ADR-009:** Separate Prompt Layer (`src/llm/prompt.ts`) Decoupled from Network Fetch
+- **ADR-010:** Safe Git Pushing Standards & GitHub Repository Hygiene
 
 ---
 
@@ -124,3 +125,16 @@ This document logs every key architectural and engineering decision made in **Ag
 * **Context:** Hardcoding prompt templates inside `generator.ts` mixes network logic (`fetch`, streaming, headers) with prompt engineering and formatting.
 * **Decision:** Isolate all system instructions, chunk formatters, sliding memory assembly, and types into `src/llm/prompt.ts`.
 * **Rationale:** Allows unit testing prompt construction (`test/unit/prompts.test.ts`) with pure deterministic functions without making real API calls.
+
+---
+
+### ADR-010: Safe Git Pushing Standards & GitHub Repository Hygiene
+* **Date:** 2026-09-09
+* **Status:** Accepted
+* **Context:** Preparing the repository for public GitHub publication at `https://github.com/abhishek3059/Agentic-chat-QA-bot`.
+* **Decision:** Enforce strict safe-pushing protocols:
+  1. **Secret & Key Isolation:** Comprehensive `.gitignore` preventing commit of `.env*`, `*.pem`, `*.key`, `token.json`, and credentials. Pre-commit grep verification across codebase.
+  2. **Zero Binary / Cache Leaks:** Explicit exclusion of `node_modules/`, `out/`, `dist/`, `.vscode-test/`, `*.vsix`, and ONNX model caches.
+  3. **Verified Pre-Push Gates:** Mandatory `npm test` and `npm run compile` green test execution prior to staging.
+  4. **Open Source Hygiene:** Provide complete `README.md`, `LICENSE` (MIT), and issue/repository links in `package.json`.
+
