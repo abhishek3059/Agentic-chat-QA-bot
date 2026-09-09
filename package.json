@@ -14,6 +14,14 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abhishek3059/Agentic-chat-QA-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abhishek3059/Agentic-chat-QA-bot/issues"
+  },
+  "homepage": "https://github.com/abhishek3059/Agentic-chat-QA-bot#readme",
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -78,7 +86,7 @@
         },
         "contextQa.maxTokensPerChunk": {
           "type": "number",
-          "default": 500,
+          "default": 200,
           "description": "Target token limit per paragraph chunk before sentence re-splitting"
         }
       }

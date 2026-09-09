@@ -140,8 +140,8 @@ flowchart TD
 ### 1. Installation & Setup
 ```bash
 # Clone the repository
-git clone https://github.com/Abhishek-Shukla-3059/Agentic-chat-Q-A-bot.git
-cd Agentic-chat-Q-A-bot
+git clone https://github.com/abhishek3059/Agentic-chat-QA-bot.git
+cd Agentic-chat-QA-bot
 
 # Install dependencies
 npm install
