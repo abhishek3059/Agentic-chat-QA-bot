@@ -41,15 +41,27 @@ When developers need to ask follow-up questions about that *specific* output, as
 
 **Agentic Chat Q&A Bot** solves this by providing a dedicated, lightweight, scoped Q&A console:
 
-* **Capture Any AI Response in 1-Click:** Grab any response turn instantly via `Ctrl+Alt+Q` (or `Cmd+Alt+Q`), status bar icon, right-click context menu, or Webview paste button.
+* **Capture Any AI Response in 1-Click:** Grab any response turn instantly via `Ctrl+Alt+Q` (or `Cmd+Alt+Q`), status bar icon, right-click context menu, or the Sidebar paste button.
 * **100% Local, Offline Embeddings:** Embedded directly on your CPU via `@xenova/transformers` (`all-MiniLM-L6-v2` running on WebAssembly/ONNX). **Zero code or text is ever transmitted over the network for embedding.**
 * **In-Memory Hybrid Retrieval:** Sub-tokenized BM25 keyword search + dense vector cosine similarity fused with **Reciprocal Rank Fusion (RRF)** in $< 0.5\text{ms}$.
 * **Scope Guardrail Short-Circuit:** Automatically detects off-topic queries before making an LLM API call, preventing wasted tokens and irrelevant answers.
-* **3-Zone Grounded Answers:** Answers clearly distinguish between direct factual statements extracted from the captured response (`[📌 From Context]`) and deep-dive conceptual expansions (`[🌐 Deep-Dive & Implementation]`).
+* **Frontier-Grade Conversational Delivery:** Eliminates robotic boilerplate preambles, artificial split cards, and bracketed citation clutter. Delivers direct senior-engineer answers, syntax-safe code with proactive gotchas, and real-time SSE token streaming.
 
 ---
 
 ## 🌟 Key Features & Advantages
+
+### 🚀 Real-Time SSE Token Streaming
+Responses stream token-by-token directly into the console with a live blinking cursor and smooth rendering, eliminating multi-second batch wait times.
+
+### 🎯 Intent-Aware Routing & Adaptive Sampling
+Zero-latency query classifier categorizes prompts into `factual`, `explain`, `code`, or `meta`:
+- **Adaptive `topK`:** Pulls 2 chunks for precise factual answers, scaling to 4–5 for code implementations.
+- **Calibrated Temperatures:** $T=0.20$ for deterministic code syntax, $T=0.35$ for facts, $T=0.55$ for pedagogical explanations.
+- **Nucleus Sampling (`top_p: 0.92`):** Cuts improbable token tails before sampling to prevent hallucinated APIs and parameters.
+
+### 💡 Interactive Follow-Up Chips
+Dynamic, intent-aware suggestion chips appear beneath answers for immediate, single-click follow-up questions.
 
 ### 🔒 100% Private & Local-First Vectorization
 Your code and agent explanations never leave your machine during indexing. We run quantized ONNX embeddings locally in-process without requiring Python or external C++ compilers.
@@ -66,7 +78,7 @@ Built purely on standard, supported VS Code Extension APIs. Runs seamlessly acro
 
 ### 🧠 Bring Your Own Model (BYOM)
 Connects to any OpenAI-compatible chat completion endpoint:
-- **OpenRouter** (DeepSeek V3/R1, Llama 3.3, Claude 3.5, Mistral)
+- **OpenRouter** (DeepSeek V3/R1, Llama 3.3, Claude 3.5/3.7, Mistral)
 - **DeepSeek API** directly
 - **Local LLMs** via Ollama, LM Studio, or vLLM
 - **OpenAI / Azure OpenAI**
@@ -95,8 +107,10 @@ flowchart TD
         Chunks --> BMIndex[("Sub-tokenized BM25 Index")]
     end
 
-    subgraph Retrieval ["4. Hybrid Retrieval & Scope Gate"]
-        UQ["Developer Question"] --> QEmb["Query Vector"]
+    subgraph Retrieval ["4. Intent-Aware Retrieval & Scope Gate"]
+        UQ["Developer Question"] --> Intent["Classifier (factual | explain | code | meta)"]
+        Intent --> AdaptiveK["Adaptive topK (2 to 5)"]
+        UQ --> QEmb["Query Vector"]
         UQ --> QTokens["Sub-Tokenized Query"]
         
         QEmb & VStore --> Cosine["Vector Cosine Scoring"]
@@ -104,16 +118,15 @@ flowchart TD
         
         Cosine & BM25 --> Gate{"Scope Pre-Check<br/>Max Cosine < 0.20 & BM25 = 0<br/>& Not Meta-Query?"}
         Gate -- "Out of Scope" --> Refuse["Fast Guardrail Banner<br/>(Zero API Cost)"]
-        Gate -- "In Scope" --> RRF["Reciprocal Rank Fusion (RRF)<br/>Normalized Score in [0, 1]"]
+        Gate -- "In Scope" --> RRF["Reciprocal Rank Fusion (RRF)<br/>Adaptive topK"]
         RRF --> TopK["Top-K Relevant Chunks"]
     end
 
-    subgraph Generation ["5. Grounded Generation"]
-        TopK & UQ --> GEN["Prompt Engine & Generator"]
-        Hist["Conversation Memory (Sliding Window)"] --> GEN
-        GEN -->|OpenAI-Compatible Fetch| LLMEndpoint["OpenRouter / DeepSeek API"]
-        LLMEndpoint --> Ans["3-Zone Labeled Response"]
-        Ans --> WV["Interactive Webview Console"]
+    subgraph Generation ["5. Frontier-Grade Generation"]
+        TopK & UQ --> GEN["Clean XML Context + Intent Directive"]
+        Hist["Sliding Conversation Memory"] --> GEN
+        GEN -->|SSE Streaming Fetch<br/>top_p=0.92, Calibrated Temp| LLMEndpoint["OpenRouter / DeepSeek / Ollama"]
+        LLMEndpoint -->|Live Token Stream| WV["Interactive Webview Console<br/>(Live Typing + Follow-Up Chips)"]
     end
 ```
 
@@ -123,11 +136,11 @@ flowchart TD
 
 | Step | Action | Description |
 |---|---|---|
-| **1. Capture** | `Ctrl+Alt+Q` | Copy an AI response turn and trigger capture. The console panel opens instantly with a character & token badge. |
+| **1. Capture** | `Ctrl+Alt+Q` | Copy an AI response turn and trigger capture. The sidebar opens instantly with character & token stats. |
 | **2. Chunk** | Structural Parser | Divides the text into typed blocks (`code`, `prose`, `list`). Preserves code blocks atomically and caps chunks at $\le 200$ tokens to respect the embedding context window. |
 | **3. Index** | Local ONNX | Computes 384-dimensional dense vectors using `all-MiniLM-L6-v2` and indexes identifier keywords (`getUserById` $\rightarrow$ `['get', 'user', 'by', 'id']`). |
-| **4. Retrieve** | RRF Hybrid Fusion | Scores chunks using both dense semantics and exact keyword matches, ranking top matches via Reciprocal Rank Fusion ($k=60$). |
-| **5. Answer** | 3-Zone Generation | Feeds only the relevant context into the LLM, outputting citations for factual statements and labeled badges for extended technical explanations. |
+| **4. Retrieve** | Intent-Aware Fusion | Classifies query intent and scores chunks using dense semantics and keyword matches, ranking matches via Reciprocal Rank Fusion ($k=60$) with adaptive `topK`. |
+| **5. Answer** | Real-Time SSE Stream | Injects clean XML context, streaming direct conversational answers token-by-token with syntax-safe code, proactive edge-case tips, and follow-up suggestion chips. |
 
 ---
 
@@ -156,7 +169,7 @@ npm run compile
 3. In the new window:
    - Copy any text or AI assistant response to your clipboard.
    - Press **`Ctrl+Alt+Q`** (or **`Cmd+Alt+Q`** on macOS).
-   - The **Context Q&A Console** will open with the captured context ready for interrogation.
+   - The **Context Q&A Sidebar** will open with the captured context ready for interrogation.
 
 ### 3. Running Automated Tests
 ```bash
@@ -173,8 +186,11 @@ You can configure settings in your VS Code `settings.json` or via the **Settings
 |---|---|---|
 | `contextQa.apiBaseUrl` | `https://openrouter.ai/api/v1` | Base URL for OpenAI-compatible completions API |
 | `contextQa.modelName` | `deepseek/deepseek-chat` | Model identifier to call for answer generation |
-| `contextQa.topK` | `3` | Number of most relevant context chunks to retrieve |
+| `contextQa.topK` | `3` | Base number of context chunks (adapted dynamically 2–5 by intent) |
 | `contextQa.maxTokensPerChunk` | `200` | Target token ceiling per chunk for embedding alignment |
+| `contextQa.temperature` | `0.45` | Global temperature override (defaults to calibrated intent profiles if 0.45) |
+| `contextQa.topP` | `0.92` | Nucleus sampling cutoff threshold (0.0 to 1.0) |
+| `contextQa.streaming` | `true` | Real-time Server-Sent Events (SSE) token streaming in console |
 
 ### Setting Your API Key Securely
 Run the VS Code command:
@@ -204,7 +220,7 @@ The repository contains comprehensive technical documentation:
 - 📋 **[docs/PRD.md](docs/PRD.md):** Product Requirements, User Personas, and Core User Scenarios.
 - 📐 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):** Detailed Technical Design, Math Formulations, and Data Flow.
 - 🧩 **[docs/chunking-strategy.md](docs/chunking-strategy.md):** Structural Markdown & Code Chunking Strategy & 200-Token Safety Ceiling.
-- 📝 **[docs/decisions.md](docs/decisions.md):** Architecture Decision Records (ADRs 001–012) with trade-offs and rationale.
+- 📝 **[docs/decisions.md](docs/decisions.md):** Architecture Decision Records (ADRs 001–014) with trade-offs and rationale.
 - 🔄 **[docs/flow.md](docs/flow.md):** Complete Runtime Sequence Flow, Execution Traces, and Live Status Matrix.
 - 🛠️ **[docs/BUILD.md](docs/BUILD.md):** Toolchain, Engine Compatibility, and Path-Safe Build Scripts.
 - 📜 **[Agents.md](Agents.md):** Rules of Engagement, Code Conventions, and Collaboration Guidelines.

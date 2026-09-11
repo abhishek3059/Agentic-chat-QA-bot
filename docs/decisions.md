@@ -19,6 +19,9 @@ This document logs every key architectural and engineering decision made in **Ag
 - **ADR-011:** Stop-Word Filtering in Sub-Tokenized BM25 Keyword Search
 - **ADR-012:** Non-Crashing Native Stubs for Text-Only Transformers Pipelines
 - **ADR-013:** Background Asynchronous Indexing with JIT Query Synchronization
+- **ADR-014:** Frontier-Grade Conversational Engine, Real-Time SSE Streaming, and Intent Routing
+- **ADR-015:** Native VS Code UI Overhaul (Sidebar WebviewView)
+- **ADR-016:** Unified Context/Q&A Dynamic Input Pill & Model Selector
 
 ---
 
@@ -170,5 +173,41 @@ This document logs every key architectural and engineering decision made in **Ag
   2. `handleUserQuestion` checks if indexing is currently active and awaits `this.indexingPromise` just-in-time before executing `hybridRetrieve`.
 * **Rationale:** Yields instant, non-blocking UI capture responsiveness while ensuring 100% vector availability when answering questions.
 
+---
 
+### ADR-014: Frontier-Grade Conversational Engine, Real-Time SSE Streaming, and Intent Routing
+* **Date:** 2026-09-11
+* **Status:** Accepted
+* **Context:** The bot's responses previously suffered from a mechanical, academic feel. User feedback and Council deliberations identified three compounding factors:
+  1. **Metadata leakage:** Injected prompt tags like `(Relevance Score: 0.920)` and `[PROSE]` caused the model to mirror robotic, defensive language.
+  2. **Template rigidity:** Forcing artificial 3-zone split cards (`### 📌 From Captured Response:` vs `### 🌐 Deep-Dive & Implementation:`) and `[Chunk X]` citations in every answer interrupted natural reading flow.
+  3. **Batch latency:** Waiting 3–4 seconds for an entire wall of text created an offline database query feel rather than an interactive assistant.
+* **Decision:**
+  1. **Clean Semantic XML Injection:** Context is injected as `<context><source id="0" lang="...">...</source></context>`, entirely omitting similarity scores so the LLM does not hedge or mirror them.
+  2. **Zero Citations in Prose & No Zone Cards:** Removed all instructions to emit `[Chunk X]` or `[0]` citations and split cards. The model delivers a unified, direct, conversational answer with syntax-safe code and 1 proactive gotcha tip.
+  3. **Intent-Aware Routing & Sampling Calibration:**
+     - A zero-latency classifier categorizes queries into `factual`, `explain`, `code`, or `meta`.
+     - Retrieval adapts `topK` (2 for factual, 4–5 for code/meta).
+     - Intent-tuned temperature profiles ($T=0.20$ for code, $T=0.35$ for factual, $T=0.55$ for explanation) ensure syntax correctness while preserving fluid prose.
+     - Nucleus sampling (`top_p: 0.92`) is enforced on all completions to eliminate low-probability token tails.
+  4. **Real-Time SSE Token Streaming:** Token deltas stream via Server-Sent Events directly into the Webview with an active typing cursor and smooth throttled Markdown rendering.
+  5. **Interactive Suggestion Chips:** Contextual follow-up chips are rendered after each response, allowing 1-click continuation.
+* **Rationale:** Transforms the extension into an agile, human-like pair programmer that rivals frontier AI experiences (Claude 3.7 Sonnet, GPT-4o) while preserving strict local RAG grounding.
 
+---
+
+### ADR-015: Native VS Code UI Overhaul (Sidebar WebviewView)
+* **Date:** 2026-09-11
+* **Status:** Accepted
+* **Context:** The extension previously opened a large `WebviewPanel` (editor tab). Users expect modern AI coding assistants (like Cline, Cursor, or GitHub Copilot) to reside natively in the narrow Activity Bar sidebar so they can view code and chat simultaneously without window management friction.
+* **Decision:** Re-architect the UI to use `vscode.WebviewViewProvider` registered under `viewsContainers.activitybar`. Remove the singleton `panelManager.ts` entirely. Enforce strict adherence to VS Code native CSS variables (`--vscode-sideBar-background`, etc.) and remove all hardcoded hex values so the extension gracefully inherits the user's active theme.
+* **Rationale:** Provides a significantly more integrated, ergonomic, and familiar developer experience.
+
+---
+
+### ADR-016: Unified Context/Q&A Dynamic Input Pill & Model Selector
+* **Date:** 2026-09-11
+* **Status:** Accepted
+* **Context:** The initial sidebar design included a collapsible "Context Ingestion" drawer at the top and a chat input at the bottom. Users found having two separate text areas confusing. Furthermore, the model selection was buried in settings.
+* **Decision:** Consolidate inputs into a single, sleek dynamic "pill" at the bottom of the sidebar. The UI statefully toggles between "Context Mode" (waiting for paste/scope) and "Q&A Mode" based on the internal presence of a scoped RAG context. Incorporate a direct model selector chip inside the pill that syncs with `contextQa.modelName` via `showInputBox`.
+* **Rationale:** Drastically simplifies user interaction flow. The dynamic state machine ensures users cannot mistakenly ask questions without context, and making the model visible/clickable builds trust.

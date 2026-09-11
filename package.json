@@ -24,6 +24,24 @@
   "homepage": "https://github.com/abhishek3059/Agentic-chat-QA-bot#readme",
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "context-qa-sidebar-container",
+          "title": "Agentic QA",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    },
+    "views": {
+      "context-qa-sidebar-container": [
+        {
+          "type": "webview",
+          "id": "context-qa-sidebar",
+          "name": "Context Q&A"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "contextQa.openPanel",
@@ -88,6 +106,21 @@
           "type": "number",
           "default": 200,
           "description": "Target token limit per paragraph chunk before sentence re-splitting"
+        },
+        "contextQa.temperature": {
+          "type": "number",
+          "default": 0.45,
+          "description": "Sampling temperature for conversational natural generation (0.0 to 1.0)"
+        },
+        "contextQa.topP": {
+          "type": "number",
+          "default": 0.92,
+          "description": "Nucleus sampling threshold (0.0 to 1.0) to cut improbable vocabulary tails before sampling"
+        },
+        "contextQa.streaming": {
+          "type": "boolean",
+          "default": true,
+          "description": "Stream assistant response tokens in real-time for immediate visual feedback"
         }
       }
     }

@@ -175,5 +175,28 @@ describe('Hybrid Retriever (src/rag/retriever.ts)', () => {
             assert.strictEqual(result.isOutOfScope, false);
             assert.ok(result.chunks.length > 0);
         });
+
+        it('never marks follow-up suggestion chips like "What are the alternatives?" as out of scope', async () => {
+            const followUps = [
+                'What are the alternatives?',
+                'Give me a simpler analogy',
+                'What are the edge cases?',
+                'Show full implementation',
+                'How do I test this?',
+                'What are the performance trade-offs?'
+            ];
+            const zeroVectors = [new Array(384).fill(0), new Array(384).fill(0)];
+
+            for (const q of followUps) {
+                const result = await hybridRetrieve(
+                    q,
+                    mockChunks,
+                    zeroVectors,
+                    { scopeThreshold: 0.20 }
+                );
+                assert.strictEqual(result.isOutOfScope, false, `Query "${q}" should not be rejected as out of scope`);
+                assert.ok(result.chunks.length > 0);
+            }
+        });
     });
 });

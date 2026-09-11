@@ -3,29 +3,34 @@ import {
     SYSTEM_INSTRUCTION,
     buildAgentContext,
     formatUserInstruction,
-    assembleChatMessage
+    assembleChatMessage,
+    classifyQueryIntent,
+    buildIntentDirective,
+    TEMPERATURE_PROFILES
 } from '../../src/llm/prompt';
-import { isApiKeyConfigured, GeneratorError } from '../../src/llm/generator';
+import { isApiKeyConfigured, GeneratorError, DEFAULT_TOP_P } from '../../src/llm/generator';
 import { ScoredChunk } from '../../src/rag/types';
 
 describe('Prompt Engine & Generator Client (src/llm/)', () => {
     describe('SYSTEM_INSTRUCTION Constitution', () => {
-        it('includes the 3-zone grounding and scope rules', () => {
+        it('enforces natural delivery, scope guardrails, and no robotic citations/cards', () => {
             assert.ok(SYSTEM_INSTRUCTION.includes('OUT-OF-SCOPE REJECTION'));
             assert.ok(SYSTEM_INSTRUCTION.includes('EXPLANATION AND PEDAGOGY'));
-            assert.ok(SYSTEM_INSTRUCTION.includes('From Captured Response'));
-            assert.ok(SYSTEM_INSTRUCTION.includes('Deep-Dive & Implementation'));
-            assert.ok(SYSTEM_INSTRUCTION.includes('[Chunk'));
+            assert.ok(SYSTEM_INSTRUCTION.includes('NO CITATION MARKERS'));
+            assert.ok(SYSTEM_INSTRUCTION.includes('NO ARTIFICIAL ZONE CARDS'));
+            assert.ok(SYSTEM_INSTRUCTION.includes('RESPONSE STYLE EXAMPLES'));
         });
     });
 
-    describe('buildAgentContext', () => {
-        it('handles empty chunks safely', () => {
+    describe('buildAgentContext (Clean XML Injection)', () => {
+        it('handles empty chunks safely with clean semantic XML', () => {
             const context = buildAgentContext([]);
-            assert.ok(context.includes('NO RELEVANT CONTEXT CHUNKS RETRIEVED'));
+            assert.ok(context.includes('<context>'));
+            assert.ok(context.includes('No relevant context found.'));
+            assert.ok(context.includes('</context>'));
         });
 
-        it('formats retrieved chunks with IDs, types, languages, and scores', () => {
+        it('formats retrieved chunks as clean XML without leaking relevance scores or type tags', () => {
             const mockChunks: ScoredChunk[] = [
                 {
                     chunk: {
@@ -43,10 +48,45 @@ describe('Prompt Engine & Generator Client (src/llm/)', () => {
             ];
 
             const context = buildAgentContext(mockChunks);
-            assert.ok(context.includes('[Chunk 0]'));
-            assert.ok(context.includes('[CODE(typescript)]'));
-            assert.ok(context.includes('const port = 8080;'));
-            assert.ok(context.includes('0.920'));
+            assert.ok(context.includes('<context>'));
+            assert.ok(context.includes('<source id="0" lang="typescript">const port = 8080;</source>'));
+            assert.ok(context.includes('</context>'));
+
+            // Must NOT leak relevance scores or bracketed type tags to avoid corrupting tone
+            assert.ok(!context.includes('0.920'));
+            assert.ok(!context.includes('[CODE'));
+            assert.ok(!context.includes('[Chunk 0]'));
+        });
+    });
+
+    describe('Intent Classification & Directives', () => {
+        it('classifies query intents accurately', () => {
+            assert.strictEqual(classifyQueryIntent('Show me the code for redis connection'), 'code');
+            assert.strictEqual(classifyQueryIntent('Implement connection pooling in TypeScript'), 'code');
+            assert.strictEqual(classifyQueryIntent('Explain how the sliding window TTL works'), 'explain');
+            assert.strictEqual(classifyQueryIntent('What is the difference between redis and memcached?'), 'explain');
+            assert.strictEqual(classifyQueryIntent('Summarize the key takeaways'), 'meta');
+            assert.strictEqual(classifyQueryIntent('List all parameters in the config'), 'meta');
+            assert.strictEqual(classifyQueryIntent('What port is Redis running on?'), 'factual');
+        });
+
+        it('provides calibrated temperature profiles', () => {
+            assert.strictEqual(TEMPERATURE_PROFILES.code, 0.20);
+            assert.strictEqual(TEMPERATURE_PROFILES.factual, 0.35);
+            assert.strictEqual(TEMPERATURE_PROFILES.explain, 0.55);
+            assert.strictEqual(TEMPERATURE_PROFILES.meta, 0.50);
+        });
+
+        it('generates dynamic directives for each intent', () => {
+            const codeDirective = buildIntentDirective('code');
+            assert.ok(codeDirective.includes('production-grade code block'));
+            assert.ok(codeDirective.includes('edge-case'));
+
+            const factualDirective = buildIntentDirective('factual');
+            assert.ok(factualDirective.includes('1–2 conversational'));
+
+            const explainDirective = buildIntentDirective('explain');
+            assert.ok(explainDirective.includes('intuitive'));
         });
     });
 
@@ -72,20 +112,23 @@ describe('Prompt Engine & Generator Client (src/llm/)', () => {
             }
         ];
 
-        it('assembles a full 3-tier instruction hierarchy', () => {
+        it('assembles a full instruction hierarchy with intent directive', () => {
             const messages = assembleChatMessage(
                 'Where is database configured?',
                 mockChunks,
-                []
+                [],
+                3,
+                'factual'
             );
 
-            // Structure: 1. System Constitution, 2. Agent Context, 3. User Query
+            // Structure: 1. System Constitution, 2. Agent Context + Directive, 3. User Query
             assert.strictEqual(messages.length, 3);
             assert.strictEqual(messages[0].role, 'system');
-            assert.ok(messages[0].content.includes('Agentic Chat Q&A bot'));
+            assert.ok(messages[0].content.includes('Agentic Chat Q&A Bot'));
 
             assert.strictEqual(messages[1].role, 'system');
             assert.ok(messages[1].content.includes('Database config is in db.ts'));
+            assert.ok(messages[1].content.includes('DIRECTIVE:'));
 
             assert.strictEqual(messages[2].role, 'user');
             assert.strictEqual(messages[2].content, 'Where is database configured?');
@@ -137,6 +180,10 @@ describe('Prompt Engine & Generator Client (src/llm/)', () => {
             assert.strictEqual(isApiKeyConfigured('   '), false);
             assert.strictEqual(isApiKeyConfigured(undefined), false);
             assert.strictEqual(isApiKeyConfigured('sk-test-12345'), true);
+        });
+
+        it('defines DEFAULT_TOP_P as 0.92', () => {
+            assert.strictEqual(DEFAULT_TOP_P, 0.92);
         });
 
         it('instantiates GeneratorError with status code and body details', () => {

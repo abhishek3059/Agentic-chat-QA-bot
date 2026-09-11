@@ -16,6 +16,42 @@ entries — if a decision changes, add a new entry saying so and why.
 
 ---
 
+### [2026-09-11] Session 5 — Frontier-Grade Conversational Engine, Real-Time SSE Streaming & Intent Routing
+**Built:**
+- Refactored `src/llm/prompt.ts`:
+  - Clean semantic XML context injection (`<context><source id="...">...</source></context>`) omitting similarity scores to avoid tone corruption.
+  - Eliminated `[Chunk X]` citations in prose and removed artificial zone cards (`📌 From Captured Response:` vs `🌐 Deep-Dive & Implementation:`).
+  - Added query intent classification (`classifyQueryIntent` covering `factual`, `explain`, `code`, `meta`).
+  - Added dynamic intent directives (`buildIntentDirective`).
+  - Added intent-calibrated temperature profiles (`TEMPERATURE_PROFILES`: $T=0.20$ code, $T=0.35$ factual, $T=0.55$ explain, $T=0.50$ meta).
+  - Added concrete few-shot response style examples to `SYSTEM_INSTRUCTION`.
+- Enhanced `src/llm/generator.ts`:
+  - Added `DEFAULT_TOP_P = 0.92` nucleus sampling.
+  - Implemented `generateAnswerStreaming` supporting OpenAI-compatible Server-Sent Events (SSE) stream parsing.
+- Updated `src/ui/panelManager.ts`:
+  - Integrated intent-based adaptive `topK` (2 for factual, 3 for explain, 4 for code, 5 for meta).
+  - Implemented SSE token streaming orchestration with batch fallback.
+  - Added `getFollowUpChips(intent, query)` generating contextual suggestion chips.
+- Updated `src/ui/webviewHtml.ts`:
+  - Cleaned Markdown rendering (removed legacy zone card and citation splitters).
+  - Implemented real-time streaming DOM handlers (`streamStart`, `streamChunk`, `streamEnd`) with live blinking cursor (`.streaming-cursor`).
+  - Added interactive follow-up chips row with 1-click query execution (`submitQuestion`).
+- Updated `package.json`: Added `contextQa.topP` and `contextQa.streaming` configuration settings.
+- Updated `test/unit/prompts.test.ts`: Added tests for XML context, intent classification, calibrated temperatures, directives, and verified 40/40 tests pass.
+- Updated `README.md` and `docs/decisions.md` (ADR-014).
+**Decided:**
+- No academic citations or zone cards in conversational responses: The user already captured the context turn; answers must read naturally and directly like Claude 3.7 Sonnet / GPT-4o.
+- Nucleus sampling: $top\_p = 0.92$ clips unlikely vocabulary tails before temperature is applied.
+- Code temperature: Fixed at $T=0.20$ to prevent hallucinated ports and invalid APIs, while prose runs at $T=0.35-0.55$.
+**Wrong/wasted time on:**
+- None. All 40 unit tests pass cleanly.
+**Known issues:**
+- None.
+**Next:**
+- Extension packaging (`vsce package`) or local end-to-end testing in the Extension Development Host.
+
+---
+
 ### [2026-09-08] Session 4 — Prompt Engine Assembly, RAG Contracts & Chunker Ingestion Start
 **Built:**
 - User created [src/llm/prompt.ts](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/src/llm/prompt.ts): Full 3-tier instruction hierarchy, system constitution, dynamic agent context injection, multi-turn sliding window memory (`conversationHistory.slice(-maxHistoryTurns * 2)`), and user query formatting.

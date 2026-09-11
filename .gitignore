@@ -56,3 +56,7 @@ ehthumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Local Agent Skills & Customizations (Keep strictly local)
+.agents/
+.claude/

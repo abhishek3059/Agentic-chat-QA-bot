@@ -1,12 +1,23 @@
 import * as vscode from 'vscode';
 import { CaptureManager } from './captureManager';
-import { ContextQAPanelManager } from './ui/panelManager';
+import { SidebarProvider } from './ui/SidebarProvider';
 
 let captureManager: CaptureManager | null = null;
 let lastCapturedResponse: string | null = null;
+let sidebarProvider: SidebarProvider | null = null;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log('[Agentic Chat Q&A Bot] Universal Agent Console extension activating...');
+
+  sidebarProvider = new SidebarProvider(context.extensionUri, context.secrets);
+  
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      'context-qa-sidebar',
+      sidebarProvider,
+      { webviewOptions: { retainContextWhenHidden: true } }
+    )
+  );
 
   // Callback that handles the captured turn text
   const handleCapturedResponse = (capturedResponse: string): void => {
@@ -19,8 +30,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     console.log(capturedResponse.slice(0, 200));
     console.log('==================================================');
 
-    // Reveal or open the Agentic Chat Q&A panel scoped to this response
-    ContextQAPanelManager.render(context.extensionUri, capturedResponse, context.secrets);
+    if (sidebarProvider) {
+      sidebarProvider.setCapturedResponse(capturedResponse);
+    }
+    
+    // Focus the view
+    vscode.commands.executeCommand('context-qa-sidebar.focus');
 
     vscode.window.showInformationMessage(
       `Agentic Chat Q&A Bot: Scoped to captured response (${capturedResponse.length} characters).`
@@ -33,19 +48,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Open webview panel command
   const openPanelCommand = vscode.commands.registerCommand('contextQa.openPanel', () => {
-    ContextQAPanelManager.render(context.extensionUri, lastCapturedResponse ?? undefined, context.secrets);
+    vscode.commands.executeCommand('context-qa-sidebar.focus');
   });
 
   // Set API Key command
   const setApiKeyCommand = vscode.commands.registerCommand('contextQa.setApiKey', async () => {
-    const key = await vscode.window.showInputBox({
-      prompt: 'Enter your OpenRouter or DeepSeek API key',
-      password: true,
-      ignoreFocusOut: true,
-    });
-    if (key) {
-      await context.secrets.store('contextQa.apiKey', key.trim());
-      vscode.window.showInformationMessage('Context Q&A: API key safely stored in SecretStorage.');
+    if (sidebarProvider) {
+      await sidebarProvider.promptAndSaveApiKey();
     }
   });
 
@@ -71,8 +80,4 @@ export function deactivate(): void {
     captureManager.dispose();
     captureManager = null;
   }
-  if (ContextQAPanelManager.currentPanel) {
-    ContextQAPanelManager.currentPanel.dispose();
-  }
 }
-

@@ -119,16 +119,62 @@ export function tokenizeCodeAndProse(text: string): string[] {
 export function isMetaQuery(query: string): boolean {
     const q = query.trim().toLowerCase();
     const metaPatterns = [
+        // Meta-explanation, simplification, and deep-dives
         /\bexplain\b/i,
         /\bsummariz/i,
         /\brecap\b/i,
-        /\bwhat does this\b/i,
-        /\bwhat is this\b/i,
+        /\bwhat does (this|it)\b/i,
+        /\bwhat is (this|it)\b/i,
         /\bwalk ?through\b/i,
-        /\bhow does this work\b/i,
+        /\bhow does (this|it) work\b/i,
         /\bbreak (this|it) down\b/i,
         /\bsimplif/i,
-        /\boverview\b/i
+        /\boverview\b/i,
+        /\belaborat/i,
+        /\btell me more\b/i,
+        /\bclarif/i,
+
+        // Pedagogical & Analogies
+        /\banalog(y|ies)\b/i,
+        /\bmetaphor\b/i,
+        /\bin simple terms\b/i,
+        /\blike i['’]?m (five|5)\b/i,
+        /\bbeginner\b/i,
+
+        // Alternatives, trade-offs, and comparisons
+        /\balternative(s)?\b/i,
+        /\bother (option|approach|alternative|way|method|pattern)s?\b/i,
+        /\btrade-?offs?\b/i,
+        /\bpros? (and|&) cons?\b/i,
+        /\badvantages?\b/i,
+        /\bdisadvantages?\b/i,
+        /\bcomparison\b/i,
+        /\bcompare\b/i,
+        /\bversus\b/i,
+        /\bvs\.?\b/i,
+
+        // Edge cases, gotchas, pitfalls, limitations
+        /\b(edge|corner) cases?\b/i,
+        /\b(pitfall|gotcha|caveat|limitation|drawback)s?\b/i,
+
+        // Implementation & Code Generation
+        /\bshow (me )?(the )?(full )?(code|implementation)\b/i,
+        /\b(full )?implementation\b/i,
+        /\b(code|implementation) (example|snippet)\b/i,
+        /\bshow (me )?(a )?(working )?example\b/i,
+        /\bstep[- ]by[- ]step\b/i,
+
+        // Testing & Reliability
+        /\bhow (do|can) (i|we) test\b/i,
+        /\btest(ing)? (this|it)?\b/i,
+        /\bunit test\b/i,
+        /\bbenchmark\b/i,
+
+        // Scope expansions & takeaways
+        /\bkey takeaways\b/i,
+        /\bwhat (did|am) (i|we) miss\b/i,
+        /\bwhat else\b/i,
+        /\bhow (do|can) i (use|apply|run)\b/i
     ];
     return metaPatterns.some(pattern => pattern.test(q));
 }
