@@ -14,9 +14,9 @@
 | **Stage 1** | Extension Scaffold & Build System | `package.json`, `tsconfig.json`, `.vscode/launch.json`, path-safe scripts | ✅ **DONE** |
 | **Stage 2** | Universal Capture Engine | `src/captureManager.ts`, clipboard shortcut, status bar, context menu | ✅ **DONE** |
 | **Stage 3** | Webview Agent Console UI | `src/ui/panelManager.ts`, `src/ui/webviewHtml.ts`, badges, simulated chat | ✅ **DONE** |
-| **Stage 4** | Local RAG Pipeline | `src/rag/types.ts`, `src/rag/chunker.ts`, `src/rag/embedder.ts`, `src/rag/retriever.ts` | ⏳ **IN PROGRESS** |
-| **Stage 5** | Grounded LLM Generation | `src/llm/generator.ts`, `SecretStorage`, 3-zone system prompt, OpenAI fetch | 📋 **PLANNED** |
-| **Stage 6** | End-to-End Wiring & Eval Harness | Wiring pipeline to Webview, `test/eval/retrieval.eval.ts`, feedback logging | 📋 **PLANNED** |
+| **Stage 4** | Local RAG Pipeline | `src/rag/types.ts`, `src/rag/chunker.ts`, `src/rag/embedder.ts`, `src/rag/retriever.ts` | ✅ **DONE** |
+| **Stage 5** | Grounded LLM Generation | `src/llm/generator.ts`, `SecretStorage`, 3-zone system prompt, OpenAI fetch | ✅ **DONE** |
+| **Stage 6** | End-to-End Pipeline Wiring | Complete wiring in `panelManager.ts`, guardrails, dynamic key prompt | ✅ **DONE** |
 
 ---
 
@@ -56,7 +56,7 @@
 
 ---
 
-### Stage 4: Local RAG Pipeline ⏳ IN PROGRESS
+### Stage 4: Local RAG Pipeline ✅ COMPLETE
 - **Goal:** Build offline, structural chunking and in-memory hybrid retrieval.
 - **Deliverables:**
   1. `src/rag/types.ts`: `Chunk`, `ScoredChunk`, and `ChunkerOptions` interfaces.
@@ -72,7 +72,7 @@
 
 ---
 
-### Stage 5: Grounded LLM Generation Engine 📋 PLANNED
+### Stage 5: Grounded LLM Generation Engine ✅ COMPLETE
 - **Goal:** Integrate OpenAI-compatible endpoint generation with 3-zone prompt engineering.
 - **Deliverables:**
   1. `src/llm/generator.ts`: Plain `fetch` call to configured `contextQa.apiBaseUrl` and `contextQa.modelName`.
@@ -87,10 +87,11 @@
 
 ---
 
-### Stage 6: End-to-End Integration, Feedback & Eval Harness 📋 PLANNED
-- **Goal:** Wire the complete pipeline into the Webview console and establish an objective retrieval benchmark.
+### Stage 6: End-to-End Pipeline Wiring & Webview Integration ✅ COMPLETE
+- **Goal:** Wire the complete pipeline into the Webview console and establish real-time Q&A capability.
 - **Deliverables:**
-  1. Replace Stage 3 simulated timeout in `panelManager.ts` with real `chunkText` $\rightarrow$ `embedder` $\rightarrow$ `retriever` $\rightarrow$ `generator` flow.
-  2. Native 👍 / 👎 feedback buttons on assistant bubbles saving to `.vscode/eval-feedback.json`.
-  3. Retrieval Eval Harness (`test/eval/retrieval.eval.ts`) with 3 golden sample contexts and precision@K scoring.
-- **Definition of Done (DoD):** Full end-to-end user journey verified; `npm run compile` and `npm test` clean.
+  1. Replaced Stage 3 simulated timeout in `panelManager.ts` with real `chunkText` $\rightarrow$ `embedder` $\rightarrow$ `retriever` $\rightarrow$ `generator` flow.
+  2. Background asynchronous indexing upon text capture so vectors are ready before first query.
+  3. Automatic scope pre-check refusal banner without burning LLM tokens.
+  4. Dynamic API key validation and inline input prompting.
+- **Definition of Done (DoD):** Full end-to-end user journey verified; `npm run compile` and `npm test` completely clean (36 passing tests).

@@ -136,4 +136,22 @@ entries — if a decision changes, add a new entry saying so and why.
   7. **Flow Tracking Updated:** Updated [docs/flow.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/flow.md) marking `chunker.ts` and `chunker.test.ts` as COMPLETE.
 - **Next Steps:**
   1. Implement [src/rag/embedder.ts](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/src/rag/embedder.ts) with `@xenova/transformers` singleton pipeline for `all-MiniLM-L6-v2`.
-  2. Implement [src/rag/retriever.ts](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/src/rag/retriever.ts) with cosine similarity, sub-tokenized BM25, normalized RRF, and scope guardrail.
+  2. Implement [src/rag/retriever.ts](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/src/rag/retriever.ts) with cosine similarity, sub-tokenized BM25, normalized RRF, and scope guardrail.
+
+---
+
+## Session 6 — Generator Implementation, End-to-End Pipeline Wiring & Stages 4–6 Completion
+- **Date:** 2026-09-11
+- **Actions Completed:**
+  1. **Stage 5 Generator Engine:** Created [src/llm/generator.ts](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/src/llm/generator.ts) supporting provider-agnostic OpenAI-compatible completions endpoints (OpenRouter, DeepSeek, Ollama) with typed `GeneratorError` handling, HTTP status differentiation (401, 429, 5xx), and 60-second AbortController timeout protection.
+  2. **Prompt & Generator Unit Tests:** Created [test/unit/prompts.test.ts](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/test/unit/prompts.test.ts) covering 3-tier instruction constitution, sliding window memory enforcement, and error classes.
+  3. **Verification:** Ran test suite across all modules: **all 36 unit tests passing (`36 passing (325ms)`)** with clean exit code 0.
+  4. **Stage 6 End-to-End Wiring:** Completely refactored [src/ui/panelManager.ts](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/src/ui/panelManager.ts):
+     - Background asynchronous vector indexing triggered upon capture.
+     - Just-in-time synchronization awaiting active indexing when user queries arrive.
+     - Fast Scope Pre-Check guardrail short-circuiting off-topic questions without burning LLM tokens.
+     - VS Code `SecretStorage` API key integration with dynamic inline input prompt fallback.
+     - Assembled 3-tier chat messages and rendered grounded assistant responses.
+  5. **Extension Wiring:** Updated [src/extension.ts](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/src/extension.ts) to pass `context.secrets` to `ContextQAPanelManager.render`.
+  6. **Decisions & Roadmap Logged:** Added ADR-013 to [docs/decisions.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/decisions.md) and updated [docs/PHASES.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/PHASES.md) and [docs/flow.md](file:///a:/Personal/projects/Agentic-chat-Q&A-bot/docs/flow.md) marking Stages 4, 5, and 6 as ✅ COMPLETE.
+

@@ -18,6 +18,7 @@ This document logs every key architectural and engineering decision made in **Ag
 - **ADR-010:** Safe Git Pushing Standards & GitHub Repository Hygiene
 - **ADR-011:** Stop-Word Filtering in Sub-Tokenized BM25 Keyword Search
 - **ADR-012:** Non-Crashing Native Stubs for Text-Only Transformers Pipelines
+- **ADR-013:** Background Asynchronous Indexing with JIT Query Synchronization
 
 ---
 
@@ -157,5 +158,17 @@ This document logs every key architectural and engineering decision made in **Ag
 * **Context:** `@xenova/transformers` statically imports `sharp` in its image utilities (`utils/image.js`). On modern Node runtimes (such as Node 26) and Windows environments where native node-gyp C++ compilation is avoided, `sharp` throws a fatal module resolution exception even though vision pipelines are never used.
 * **Decision:** Provide a zero-dependency, non-crashing stub for `sharp` in text-only environments.
 * **Rationale:** Keeps the extension 100% portable across developer machines without requiring Visual Studio C++ build tools or Python toolchains.
+
+---
+
+### ADR-013: Background Asynchronous Indexing with JIT Query Synchronization
+* **Date:** 2026-09-11
+* **Status:** Accepted
+* **Context:** Generating local ONNX embeddings for 10–35 chunks takes approximately 100–300ms. If vectorization blocks the capture callback, UI responsiveness freezes. Conversely, if a user immediately types and submits a question before vectorization completes, retrieval would execute against an empty vector array.
+* **Decision:** Decouple capture from indexing:
+  1. `setCapturedResponse` immediately updates the UI preview, executes structural chunking synchronously, and kicks off `embedChunks` as a background `Promise<void>`.
+  2. `handleUserQuestion` checks if indexing is currently active and awaits `this.indexingPromise` just-in-time before executing `hybridRetrieve`.
+* **Rationale:** Yields instant, non-blocking UI capture responsiveness while ensuring 100% vector availability when answering questions.
+
 
 

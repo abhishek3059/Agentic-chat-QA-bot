@@ -20,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     console.log('==================================================');
 
     // Reveal or open the Agentic Chat Q&A panel scoped to this response
-    ContextQAPanelManager.render(context.extensionUri, capturedResponse);
+    ContextQAPanelManager.render(context.extensionUri, capturedResponse, context.secrets);
 
     vscode.window.showInformationMessage(
       `Agentic Chat Q&A Bot: Scoped to captured response (${capturedResponse.length} characters).`
@@ -33,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Open webview panel command
   const openPanelCommand = vscode.commands.registerCommand('contextQa.openPanel', () => {
-    ContextQAPanelManager.render(context.extensionUri, lastCapturedResponse ?? undefined);
+    ContextQAPanelManager.render(context.extensionUri, lastCapturedResponse ?? undefined, context.secrets);
   });
 
   // Set API Key command
