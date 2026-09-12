@@ -16,6 +16,171 @@ entries — if a decision changes, add a new entry saying so and why.
 
 ---
 
+### [2026-09-12] Session 13 — Marketplace Prep: CHANGELOG + Walkthrough + README
+
+**Built:**
+- `CHANGELOG.md` (Keep-a-Changelog, 0.1.0 entry covering Sessions 1–12).
+- Get Started walkthrough (`contributes.walkthroughs` + 4 step files under
+  `walkthroughs/`): provider → API key → capture → ask, with command links.
+  Shows on the Welcome page after install.
+- Manifest polish: `keywords`, `license: MIT`, dark `galleryBanner`.
+- README: new Install + 2-minute Getting Started + What's New sections;
+  fixed the architecture diagram's removed scope gate (ADR-017) and the stale
+  "Scope Pre-Check" step text.
+- Verified via `vsce ls`: CHANGELOG + all 4 walkthrough files pack into the vsix.
+  72 tests passing, compile clean.
+**Known issue / follow-up:** marketplace `icon` not set — `media/qa-mark.svg`
+  is SVG and the Marketplace needs a PNG. Rasterize to `media/qa-icon.png`
+  (128×128) and add `"icon"` before publishing.
+**Next:** commit + push to GitHub, then `vsce publish`.
+
+---
+
+### [2026-09-12] Session 12 — Phase F: Model Picker Search + Pin (ADR-021)
+**Built (plan: `.opencode/plans/MODEL-PICKER-UX-PLAN.md`, Council Meeting 4):**
+- Convened 4-person council (Architect/Skeptic/Pragmatist/Researcher subagents)
+  on the OpenRouter 400+ list problem; researched Cline, Roo Code, Continue,
+  Copilot. Industry pattern: search + pin, never filter/group. User confirmed.
+- Webview-only change in `src/ui/webviewHtml.ts`: debounced (150ms) re-render
+  search over `id` + `name`; star/pin favorites persisted via
+  `vscode.getState()`; favorites sort first; count badge ("47 of 312 models");
+  autofocus on search (free-text input on fetch failure). Zero backend changes.
+- Tests: `webviewModels.test.ts` extended (count element, favorites wiring,
+  debounce, badge text). **72 passing**, compile clean.
+**Decided:** no exclusion rules (Skeptic's invisibility argument); re-render over
+  DOM hide/show (required for favorites-first sort); skipped clear button
+  (Escape closes); server-side OpenRouter params stay a future option.
+**Next:** repackage `.vsix` + install on machine, user smoke-tests pin/search.
+
+---
+
+### [2026-09-12] Session 11 — Phase E: Provider Presets + Live Model Picker (ADR-020)
+**Built (plan: `.opencode/plans/PROVIDER-UX-PLAN.md`, phases E1→E3):**
+- E1: `contextQa.provider` enum setting (openai/openrouter/deepseek/ollama/custom);
+  `apiBaseUrl` now custom-only (default `""`); new `src/llm/providers.ts` single
+  preset table + pure resolvers; `SidebarProvider` resolves URLs via preset;
+  API-key prompt de-branded; OpenRouter referral headers conditional in generator.
+- E2: new `src/llm/modelList.ts` (`GET /models`, 8s timeout, never throws);
+  sidebar model selector rebuilt as an in-webview dropdown (spinner, filter box,
+  display names, current-model highlight, free-text fallback). New protocol:
+  `fetchModels` → `modelsLoading`/`modelsList`/`modelsError`; `changeModel`
+  accepts `modelId`. **71 passing** (51 + 20 new), compile clean.
+- E3: `contextQa.configureProvider` quick-pick command + config-change watcher
+  refreshing the sidebar on Settings edits.
+**Decided (refinements over the plan):**
+- Unknown provider ids fall back to the OpenRouter preset instead of an empty URL.
+- Single `resolveExtraHeaders()` helper instead of inline conditionals in two places.
+- Picker opens **upward** (`bottom: 100%`) — the plan's `top: 100%` would render
+  off-screen below the footer.
+- AbortController timeout (extension-host safe) over `AbortSignal.timeout`;
+  `parseModelsResponse` split out for HTTP-free unit tests; added filter input
+  for 400-item OpenRouter lists; `listProviderOptions()` keeps the provider
+  table in one place.
+**Wrong/wasted time on:** one test assertion assumed insertion order instead of
+  the alphabetical sort the implementation guarantees — fixed the test, not the code.
+**Known issues:** none. Live model fetch needs a real key/provider to smoke-test.
+**Next:** user smoke-tests provider switch + model picker, then repackage `.vsix`.
+
+---
+
+### [2026-09-12] Session 10 — Phase C: Packaging (.vsix) + Ship Verification
+**Built:**
+- Installed `@vscode/vsce` (dev dep) and packaged `agentic-chat-qa-bot-0.1.0.vsix`
+  (3,083 files, 76 MB — bulk is the ONNX runtime in `node_modules`, required at activation).
+- Added `.vscodeignore` (drops `src/`, `test/`, `docs/`, `.agents/`, `.claude/`,
+  `scripts/`, `tsconfig.json`, maps, `.vsix` itself from the package).
+- Deleted stale `out/ui/panelManager.js(.map)` left from the ADR-015 rename.
+- Verified VSIX contents (`media/qa-mark.svg`, demo, all compiled `out/` files) and
+  rendered webview HTML server-side (QA Assistant branding, watermark layer,
+  `forced-colors` rule present, zero "Agentic" leftovers).
+- Final `npm test`: **51 passing**, compile clean. Updated `docs/tasks/PLAN.md`
+  (Phase C status + C2 checklist).
+**Decided:**
+- Ship WITH `node_modules`: the first `--no-dependencies` package would have been
+  broken at activation (ONNX import). 76 MB is the honest cost of local embeddings.
+- Stale `out/` artifacts are a real hygiene item — `tsc` never deletes renamed outputs.
+**Wrong/wasted time on:**
+- `node ./node_modules/@vscode/vsce/out/vsce` — wrong entry path; the bin is the
+  extensionless `node_modules/@vscode/vsce/vsce` file.
+- One `node -e` quoting failure in PowerShell (nested double quotes) — used
+  single-quoted outer command on retry.
+**Known issues:** none in packaging. Manual F5 smoke test still needs the user.
+**Next:** user runs the C2 checklist (install VSIX → F5 → capture → explain-simpler →
+  off-topic refusal → watermark/theme check), then ship.
+
+---
+
+### [2026-09-12] Session 9 — Final Pre-Ship Phase: Rename to QA Assistant + Logo & Watermark (ADR-019)
+**Built:**
+- Council Meeting 3 (`docs/council-meetings/meetings_3.md`): 4 parallel perspectives
+  (rename scope, asset delivery, watermark safety, platform conventions) + chairman
+  synthesis. Unanimous: display strings only, freeze all IDs.
+- Renamed user-facing strings to "QA Assistant": `displayName`, container/view
+  titles, command + config titles, webview `<title>`, bot card headers, status bar,
+  notifications, logs, README H1. IDs frozen (`agentic-chat-qa-bot`, `contextQa.*`).
+- Created `src/ui/qaMark.ts` (mark single source of truth, bracket-node concept),
+  `media/qa-mark.svg` (standalone copy, now the real activity-bar container icon —
+  the old `$(comment-discussion)` value was not a valid container icon),
+  `media/watermark-demo.html` (dark+light legibility proof).
+- Wired mark into webview: 16px header icon, 12px card-header icons, 300px fixed
+  bottom-right cropped watermark (opacity .05, `aria-hidden`, `pointer-events:none`,
+  chat stacked above, `forced-colors` kill-switch, no animation).
+- Added `test/unit/qaMark.test.ts` (6 tests). **51 passing**, compile clean.
+- Logged ADR-019, updated `docs/flow.md` file table.
+**Decided:**
+- Inline SVG string over `<img>`+`asWebviewUri`: `data:`-URIs are CSP-blocked and
+  the `<img>` route needs extra plumbing; inline needs zero infrastructure changes.
+- Bracket + Extracted Node over Lens concept: bolder at 16px, closest to the brief.
+- Bottom-right cropped watermark over centered: legibility under dense text.
+**Wrong/wasted time on:** one `python3` shell call broke on the `&` in the repo
+  path (PowerShell call operator) — used `edit` with `replaceAll` instead; `workdir`
+  param avoids the issue for read-only commands.
+**Known issues:** `media/` copies can drift from `qaMark.ts` — controlled by header
+  comments + ADR-019 rule (canonical source documented).
+**Next:** `vsce package` + F5 smoke test, then ship.
+
+---
+
+### [2026-09-12] Session 8 — RAG Architecture Report for First-Time RAG Learning
+**Built:** created `docs/RAG-ARCHITECTURE-REPORT.md` — 11-section report covering
+  the 5-stage pipeline, 7 challenges with workarounds (code-destroying splitters,
+  identifier-blind embeddings, stop-word BM25 poisoning, scope-gate saga, ONNX
+  cold start, stale-vector races, native-dependency breakage), plus retry/token-cache
+  notes and 7 lessons for the next RAG project. Verified `npm run compile` clean,
+  `npm test` 45 passing.
+**Decided:** report is narrative + grounded (exact constants: 200/256 tokens,
+  384d, RRF k=60 normalized by 2/61, BM25 k1=1.2/b=0.75, retry 3× 1s/2s/4s+jitter).
+**Wrong/wasted time on:** none.
+**Known issues:** none new.
+**Next:** Phase C — `vsce package` + F5 smoke test.
+
+### [2026-09-12] Session 7 — Council Plan Execution: Scope Gate Removal + Reliability (ADR-017/ADR-018)
+**Built:**
+- Created `docs/tasks/PLAN.md`: phased implementation plan from both council meetings.
+- Created `docs/council-meetings/meetings_2.md`: full architecture-review + scope-gate deliberation record (4 members, peer review, chairman synthesis).
+- Removed scope guardrail: deleted `isMetaQuery()` + pre-check from `src/rag/retriever.ts`, removed `isOutOfScope` early-exit from `src/ui/SidebarProvider.ts`; `isOutOfScope` kept as always-`false` for interface compat.
+- Added `generationCounter` cancellation guard in `SidebarProvider.ts` (capture/indexing/question/render all check it).
+- Added `fetchWithRetry` + `isRetryableStatus` in `src/llm/generator.ts` (3 attempts, 1s/2s/4s + jitter, 429/5xx only, never 401/AbortError).
+- Embedding failures now post a visible webview warning (BM25-only degradation disclosed).
+- Cached `tokenizeCodeAndProse()` results at capture time; `computeBM25Scores` accepts optional `preTokenizedChunks`.
+- ONNX pre-warm fire-and-forget in `src/extension.ts` `activate()`.
+- Strengthened `SYSTEM_INSTRUCTION` rule 3: model must disclose when context doesn't address the question; explanations/summaries/alternatives explicitly in scope.
+- Removed unused `@img/sharp-win32-x64` from `package.json`.
+- Updated tests: rewrote 3 gate tests into pass-through tests, added pre-tokenized ranking test, `isRetryableStatus` test, ADR-017 prompt test, rewrote live-simulation Step 4. **45 passing.**
+- Updated `docs/decisions.md` (ADR-017, ADR-018), `docs/flow.md` (S3/sequence/Trace D/file table, plus stale `panelManager.ts` filename fix).
+**Decided:**
+- ADR-017: filter chunks, not questions — matches NotebookLM/Perplexity/ChatGPT precedent + Self-RAG/CRAG/ScoreGate consensus; Skeptic's hallucination concern handled at prompt layer.
+- ADR-018: counter-based (not AbortController) cancellation — simpler, covers wrong-context answers at every stage.
+- Kept `scopeThreshold` field in `RetrieverOptions` as deprecated (no interface cascade).
+**Wrong/wasted time on:**
+- `default.grep`/`default.glob` tools broken in this environment (Expand-Archive module failure); used `Select-String` via `bash` instead. Same for file listing.
+- First `edit` on `generator.ts` fetch block failed with multiple matches — the batch and streaming functions share identical code; used `replaceAll`.
+**Known issues:**
+- `isOutOfScope` field + `reason` still exist in types (always false) — cleanup deferred to Phase D.
+- SSE truncation detection (council B3) not implemented — streaming fallback to batch covers most cases.
+- `vsce package` + F5 smoke test not yet run (Phase C).
+**Next:** Phase C — `npx @vscode/vsce package`, install + F5 smoke test (sidebar, capture, ONNX load, key prompt, streaming, off-topic LLM-level refusal).
+
 ### [2026-09-11] Session 5 — Frontier-Grade Conversational Engine, Real-Time SSE Streaming & Intent Routing
 **Built:**
 - Refactored `src/llm/prompt.ts`:

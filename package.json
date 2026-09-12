@@ -1,6 +1,6 @@
 {
   "name": "agentic-chat-qa-bot",
-  "displayName": "Agentic Chat Q&A Bot",
+  "displayName": "QA Assistant",
   "description": "Universal Scoped RAG Q&A console for AI agent responses, compatible with VS Code, Antigravity, and Cursor",
   "version": "0.1.0",
   "publisher": "agentic-developer",
@@ -11,6 +11,22 @@
     "AI",
     "Other"
   ],
+  "keywords": [
+    "qa",
+    "rag",
+    "chat",
+    "openrouter",
+    "deepseek",
+    "openai",
+    "ollama",
+    "agent",
+    "assistant"
+  ],
+  "license": "MIT",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -28,8 +44,8 @@
       "activitybar": [
         {
           "id": "context-qa-sidebar-container",
-          "title": "Agentic QA",
-          "icon": "$(comment-discussion)"
+          "title": "QA Assistant",
+          "icon": "media/qa-mark.svg"
         }
       ]
     },
@@ -38,34 +54,38 @@
         {
           "type": "webview",
           "id": "context-qa-sidebar",
-          "name": "Context Q&A"
+          "name": "QA Assistant"
         }
       ]
     },
     "commands": [
       {
         "command": "contextQa.openPanel",
-        "title": "Context Q&A: Open Agent Console"
+        "title": "QA Assistant: Open Agent Console"
       },
       {
         "command": "contextQa.captureClipboard",
-        "title": "Context Q&A: Capture from Clipboard"
+        "title": "QA Assistant: Capture from Clipboard"
       },
       {
         "command": "contextQa.askAboutSelection",
-        "title": "Context Q&A: Ask About Selection"
+        "title": "QA Assistant: Ask About Selection"
       },
       {
         "command": "contextQa.simulateCapture",
-        "title": "Context Q&A: Enter Custom Context Text"
+        "title": "QA Assistant: Enter Custom Context Text"
       },
       {
         "command": "contextQa.setApiKey",
-        "title": "Context Q&A: Set LLM API Key"
+        "title": "QA Assistant: Set LLM API Key"
+      },
+      {
+        "command": "contextQa.configureProvider",
+        "title": "QA Assistant: Configure LLM Provider"
       },
       {
         "command": "contextQa.showLastCapture",
-        "title": "Context Q&A: Show Last Captured Context"
+        "title": "QA Assistant: Show Last Captured Context"
       }
     ],
     "keybindings": [
@@ -84,13 +104,67 @@
         }
       ]
     },
+    "walkthroughs": [
+      {
+        "id": "qaAssistant.getStarted",
+        "title": "Get Started with QA Assistant",
+        "description": "Set up your provider, save an API key, and ask your first grounded question — in about 2 minutes.",
+        "steps": [
+          {
+            "id": "qaAssistant.walkthrough.provider",
+            "title": "Choose your LLM provider",
+            "description": "Pick OpenAI, OpenRouter, DeepSeek, local Ollama, or any OpenAI-compatible endpoint.",
+            "media": {
+              "markdown": "walkthroughs/01-provider.md"
+            }
+          },
+          {
+            "id": "qaAssistant.walkthrough.apiKey",
+            "title": "Save your API key",
+            "description": "Stored in encrypted SecretStorage — never in settings or on disk.",
+            "media": {
+              "markdown": "walkthroughs/02-api-key.md"
+            }
+          },
+          {
+            "id": "qaAssistant.walkthrough.capture",
+            "title": "Capture an AI response",
+            "description": "Copy a response and press Ctrl+Alt+Q (Cmd+Alt+Q on Mac) to scope the console to it.",
+            "media": {
+              "markdown": "walkthroughs/03-capture.md"
+            }
+          },
+          {
+            "id": "qaAssistant.walkthrough.ask",
+            "title": "Ask your first question",
+            "description": "Try “Explain this simpler” and watch a grounded answer stream back.",
+            "media": {
+              "markdown": "walkthroughs/04-ask.md"
+            }
+          }
+        ]
+      }
+    ],
     "configuration": {
-      "title": "Context Q&A",
+      "title": "QA Assistant",
       "properties": {
+        "contextQa.provider": {
+          "type": "string",
+          "default": "openrouter",
+          "enum": ["openai", "openrouter", "deepseek", "ollama", "custom"],
+          "enumDescriptions": [
+            "OpenAI (GPT-4o, GPT-4, etc.) — api.openai.com",
+            "OpenRouter — multi-provider gateway with free models",
+            "DeepSeek — deepseek-chat, deepseek-reasoner",
+            "Ollama — local models via localhost:11434",
+            "Custom — any OpenAI-compatible endpoint"
+          ],
+          "description": "LLM provider. Select 'Custom' to use any OpenAI-compatible endpoint."
+        },
         "contextQa.apiBaseUrl": {
           "type": "string",
-          "default": "https://openrouter.ai/api/v1",
-          "description": "Base URL of OpenAI-compatible API (e.g., OpenRouter or DeepSeek)"
+          "default": "",
+          "description": "Base URL override. Only used when provider is 'Custom'. For preset providers, this is derived automatically."
         },
         "contextQa.modelName": {
           "type": "string",
@@ -133,13 +207,13 @@
     "test": "node ./node_modules/mocha/bin/mocha.js --require ts-node/register \"test/unit/**/*.test.ts\""
   },
   "dependencies": {
-    "@img/sharp-win32-x64": "^0.35.4",
     "@xenova/transformers": "^2.17.2"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.24",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.2",
     "mocha": "^10.3.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"

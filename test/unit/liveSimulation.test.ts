@@ -189,14 +189,18 @@ export class SlidingWindowRateLimiter {
         assert.ok(codeChunk.chunk.text.includes('isAllowed'));
     });
 
-    it('Step 4: Out-of-Scope Guardrail Short-Circuit', async function () {
+    it('Step 4: Off-Topic Questions Pass Through (ADR-017)', async function () {
+        // ADR-017 removed the question-level scope gate. Even a completely
+        // unrelated question reaches the LLM; the system prompt (not the
+        // retriever) is the single relevance judge.
         const offTopicQuestion = 'How do I make a chocolate cheesecake at home?';
 
         const retrieval = await hybridRetrieve(offTopicQuestion, chunks, vectors, { topK: 3 });
         assert.strictEqual(
             retrieval.isOutOfScope,
-            true,
-            'Completely unrelated cooking question must be flagged as out-of-scope'
+            false,
+            'No question is rejected at retrieval time anymore'
         );
+        assert.ok(retrieval.chunks.length > 0, 'Top-K chunks are still returned for grounding');
     });
 });

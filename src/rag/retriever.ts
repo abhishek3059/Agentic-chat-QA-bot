@@ -13,7 +13,6 @@ import { Chunk, ScoredChunk, RetrieverOptions, RetrievalResult } from './types';
 import { embedText } from './embedder';
 
 export const DEFAULT_TOP_K = 3;
-export const DEFAULT_SCOPE_THRESHOLD = 0.20;
 export const RRF_K = 60;
 
 /**
@@ -112,78 +111,12 @@ export function tokenizeCodeAndProse(text: string): string[] {
 }
 
 /**
- * Determines whether a query is a meta-transformation request
- * (e.g., 'explain this', 'summarize this', 'what does this do') which
- * shouldn't be rejected by the scope guardrail even with low keyword overlap.
- */
-export function isMetaQuery(query: string): boolean {
-    const q = query.trim().toLowerCase();
-    const metaPatterns = [
-        // Meta-explanation, simplification, and deep-dives
-        /\bexplain\b/i,
-        /\bsummariz/i,
-        /\brecap\b/i,
-        /\bwhat does (this|it)\b/i,
-        /\bwhat is (this|it)\b/i,
-        /\bwalk ?through\b/i,
-        /\bhow does (this|it) work\b/i,
-        /\bbreak (this|it) down\b/i,
-        /\bsimplif/i,
-        /\boverview\b/i,
-        /\belaborat/i,
-        /\btell me more\b/i,
-        /\bclarif/i,
-
-        // Pedagogical & Analogies
-        /\banalog(y|ies)\b/i,
-        /\bmetaphor\b/i,
-        /\bin simple terms\b/i,
-        /\blike i['’]?m (five|5)\b/i,
-        /\bbeginner\b/i,
-
-        // Alternatives, trade-offs, and comparisons
-        /\balternative(s)?\b/i,
-        /\bother (option|approach|alternative|way|method|pattern)s?\b/i,
-        /\btrade-?offs?\b/i,
-        /\bpros? (and|&) cons?\b/i,
-        /\badvantages?\b/i,
-        /\bdisadvantages?\b/i,
-        /\bcomparison\b/i,
-        /\bcompare\b/i,
-        /\bversus\b/i,
-        /\bvs\.?\b/i,
-
-        // Edge cases, gotchas, pitfalls, limitations
-        /\b(edge|corner) cases?\b/i,
-        /\b(pitfall|gotcha|caveat|limitation|drawback)s?\b/i,
-
-        // Implementation & Code Generation
-        /\bshow (me )?(the )?(full )?(code|implementation)\b/i,
-        /\b(full )?implementation\b/i,
-        /\b(code|implementation) (example|snippet)\b/i,
-        /\bshow (me )?(a )?(working )?example\b/i,
-        /\bstep[- ]by[- ]step\b/i,
-
-        // Testing & Reliability
-        /\bhow (do|can) (i|we) test\b/i,
-        /\btest(ing)? (this|it)?\b/i,
-        /\bunit test\b/i,
-        /\bbenchmark\b/i,
-
-        // Scope expansions & takeaways
-        /\bkey takeaways\b/i,
-        /\bwhat (did|am) (i|we) miss\b/i,
-        /\bwhat else\b/i,
-        /\bhow (do|can) i (use|apply|run)\b/i
-    ];
-    return metaPatterns.some(pattern => pattern.test(q));
-}
-
-/**
  * Computes BM25 keyword relevance scores across all chunks.
  * Parameters: k1 = 1.2, b = 0.75.
+ * Accepts optionally pre-tokenized chunk tokens (cached at capture time)
+ * to avoid re-tokenizing unchanged chunks on every query.
  */
-export function computeBM25Scores(queryTokens: string[], chunks: Chunk[]): number[] {
+export function computeBM25Scores(queryTokens: string[], chunks: Chunk[], preTokenizedChunks?: string[][]): number[] {
     const N = chunks.length;
     if (N === 0 || queryTokens.length === 0) {
         return new Array(N).fill(0);
@@ -192,8 +125,10 @@ export function computeBM25Scores(queryTokens: string[], chunks: Chunk[]): numbe
     const k1 = 1.2;
     const b = 0.75;
 
-    // Tokenize each chunk and calculate document lengths
-    const chunkTokensList = chunks.map(chunk => tokenizeCodeAndProse(chunk.text));
+    // Use cached tokens when available; otherwise tokenize on the fly.
+    const chunkTokensList = preTokenizedChunks && preTokenizedChunks.length === N
+        ? preTokenizedChunks
+        : chunks.map(chunk => tokenizeCodeAndProse(chunk.text));
     const docLengths = chunkTokensList.map(tokens => tokens.length);
     const avgdl = docLengths.reduce((acc, len) => acc + len, 0) / (N || 1);
 
@@ -245,15 +180,18 @@ export function computeBM25Scores(queryTokens: string[], chunks: Chunk[]): numbe
 
 /**
  * Executes hybrid retrieval across captured chunks.
+ *
+ * ADR-017: no question-level scope gate. Every question reaches the LLM while
+ * captured context exists; the system prompt is the single relevance judge.
+ * `isOutOfScope` is always false (kept for interface compatibility).
  */
 export async function hybridRetrieve(
     query: string,
     chunks: Chunk[],
     vectors: number[][],
-    options?: RetrieverOptions
+    options?: RetrieverOptions & { preTokenizedChunks?: string[][] }
 ): Promise<RetrievalResult> {
     const topK = options?.topK ?? options?.topk ?? DEFAULT_TOP_K;
-    const scopeThreshold = options?.scopeThreshold ?? DEFAULT_SCOPE_THRESHOLD;
 
     if (!chunks || chunks.length === 0) {
         return {
@@ -270,22 +208,9 @@ export async function hybridRetrieve(
     const vectorScores: number[] = chunks.map((_, i) =>
         vectors[i] ? cosineSimilarity(queryVector, vectors[i]) : 0
     );
-    const bm25Scores: number[] = computeBM25Scores(queryTokens, chunks);
+    const bm25Scores: number[] = computeBM25Scores(queryTokens, chunks, options?.preTokenizedChunks);
 
-    // 3. Fast Scope Guardrail Pre-Check
-    const maxCosine = Math.max(0, ...vectorScores);
-    const totalBM25 = bm25Scores.reduce((acc, s) => acc + s, 0);
-    const isMeta = isMetaQuery(query);
-
-    if (!isMeta && maxCosine < scopeThreshold && totalBM25 === 0) {
-        return {
-            chunks: [],
-            isOutOfScope: true,
-            reason: `Query has no keyword overlap (BM25=0) and low semantic relevance (max cosine=${maxCosine.toFixed(3)} < ${scopeThreshold}).`
-        };
-    }
-
-    // 4. Rank by Dense Vector Similarity
+    // 3. Rank by Dense Vector Similarity
     const vectorRanked = chunks
         .map((_, idx) => ({ idx, score: vectorScores[idx] }))
         .sort((a, b) => b.score - a.score);
@@ -295,7 +220,7 @@ export async function hybridRetrieve(
         vectorRankMap.set(item.idx, rank + 1); // 1-based rank
     });
 
-    // 5. Rank by BM25 Keyword Match
+    // 4. Rank by BM25 Keyword Match
     const bm25Ranked = chunks
         .map((_, idx) => ({ idx, score: bm25Scores[idx] }))
         .sort((a, b) => b.score - a.score);
@@ -305,7 +230,7 @@ export async function hybridRetrieve(
         bm25RankMap.set(item.idx, rank + 1); // 1-based rank
     });
 
-    // 6. Reciprocal Rank Fusion (RRF) & Normalization
+    // 5. Reciprocal Rank Fusion (RRF) & Normalization
     // Max theoretical score: 1/(60+1) + 1/(60+1) = 2/61
     const maxTheoreticalRRF = 2 / (RRF_K + 1);
 

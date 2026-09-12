@@ -1,13 +1,22 @@
 import * as vscode from 'vscode';
 import { CaptureManager } from './captureManager';
 import { SidebarProvider } from './ui/SidebarProvider';
+import { getEmbeddingPipeline } from './rag/embedder';
+import { listProviderOptions, ProviderId } from './llm/providers';
 
 let captureManager: CaptureManager | null = null;
 let lastCapturedResponse: string | null = null;
 let sidebarProvider: SidebarProvider | null = null;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  console.log('[Agentic Chat Q&A Bot] Universal Agent Console extension activating...');
+  console.log('[QA Assistant] Universal Agent Console extension activating...');
+
+  // ADR-018: pre-warm the local ONNX embedding model in the background so the
+  // first query does not pay the full download + session-init cost. Fire-and-forget.
+  getEmbeddingPipeline().then(
+    () => console.log('[QA Assistant] Embedding model pre-warmed.'),
+    (err) => console.warn('[QA Assistant] Embedding model pre-warm failed (will retry on first query):', err)
+  );
 
   sidebarProvider = new SidebarProvider(context.extensionUri, context.secrets);
   
@@ -24,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     lastCapturedResponse = capturedResponse;
 
     console.log('==================================================');
-    console.log('[Agentic Chat Q&A Bot] TURN CAPTURE EVENT RECEIVED');
+    console.log('[QA Assistant] TURN CAPTURE EVENT RECEIVED');
     console.log(`Length: ${capturedResponse.length} characters`);
     console.log('--- Content Preview (first 200 chars) ---');
     console.log(capturedResponse.slice(0, 200));
@@ -38,7 +47,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.executeCommand('context-qa-sidebar.focus');
 
     vscode.window.showInformationMessage(
-      `Agentic Chat Q&A Bot: Scoped to captured response (${capturedResponse.length} characters).`
+      `QA Assistant: Scoped to captured response (${capturedResponse.length} characters).`
     );
   };
 
@@ -58,19 +67,36 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   });
 
+  // Provider picker: quick-pick that writes contextQa.provider to settings.
+  const configureProviderCommand = vscode.commands.registerCommand('contextQa.configureProvider', async () => {
+    const picked = await vscode.window.showQuickPick(
+      listProviderOptions().map(p => ({ label: p.label, description: p.description, id: p.id })),
+      { placeHolder: 'Select LLM provider' }
+    );
+    if (picked) {
+      await vscode.workspace.getConfiguration('contextQa').update(
+        'provider',
+        picked.id as ProviderId,
+        vscode.ConfigurationTarget.Global
+      );
+      vscode.window.showInformationMessage(`QA Assistant: Provider set to ${picked.label}.`);
+    }
+  });
+
   const showLastCaptureCommand = vscode.commands.registerCommand('contextQa.showLastCapture', () => {
     if (lastCapturedResponse) {
       vscode.window.showInformationMessage(
         `Last Captured (${lastCapturedResponse.length} chars): ${lastCapturedResponse.slice(0, 100)}...`
       );
     } else {
-      vscode.window.showInformationMessage('Context Q&A: No response has been captured yet.');
+      vscode.window.showInformationMessage('QA Assistant: No response has been captured yet.');
     }
   });
 
   context.subscriptions.push(
     openPanelCommand,
     setApiKeyCommand,
+    configureProviderCommand,
     showLastCaptureCommand
   );
 }

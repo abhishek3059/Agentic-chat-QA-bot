@@ -2,7 +2,6 @@ import * as assert from 'assert';
 import {
     cosineSimilarity,
     tokenizeCodeAndProse,
-    isMetaQuery,
     computeBM25Scores,
     hybridRetrieve
 } from '../../src/rag/retriever';
@@ -60,22 +59,6 @@ describe('Hybrid Retriever (src/rag/retriever.ts)', () => {
         });
     });
 
-    describe('isMetaQuery', () => {
-        it('identifies broad meta-transformation questions', () => {
-            assert.strictEqual(isMetaQuery('Can you explain this to me?'), true);
-            assert.strictEqual(isMetaQuery('Summarize this architectural plan'), true);
-            assert.strictEqual(isMetaQuery('What does this code do?'), true);
-            assert.strictEqual(isMetaQuery('Break this down step by step'), true);
-            assert.strictEqual(isMetaQuery('Give me an overview'), true);
-        });
-
-        it('rejects specific domain questions from being classified as meta-queries', () => {
-            assert.strictEqual(isMetaQuery('What port is the postgres database running on?'), false);
-            assert.strictEqual(isMetaQuery('How is the JWT secret validated in auth.ts?'), false);
-            assert.strictEqual(isMetaQuery('What is the weather in Tokyo?'), false);
-        });
-    });
-
     describe('computeBM25Scores', () => {
         const mockChunks: Chunk[] = [
             {
@@ -104,7 +87,7 @@ describe('Hybrid Retriever (src/rag/retriever.ts)', () => {
         });
     });
 
-    describe('hybridRetrieve & Scope Guardrail', () => {
+    describe('hybridRetrieve (ADR-017: no question-level scope gate)', () => {
         const mockChunks: Chunk[] = [
             {
                 id: 'chunk-0',
@@ -144,40 +127,25 @@ describe('Hybrid Retriever (src/rag/retriever.ts)', () => {
             assert.ok(result.chunks[0].combinedScore >= 0 && result.chunks[0].combinedScore <= 1.0);
         });
 
-        it('short-circuits out-of-scope queries when both cosine and BM25 match fail', async () => {
-            // Unrelated query vector having orthogonal similarity (cosine = 0) and zero keyword match
+        it('passes low-overlap queries through to the LLM instead of rejecting them', async () => {
+            // Unrelated query vector having orthogonal similarity (cosine = 0) and zero keyword match.
+            // ADR-017: the question-level gate is removed — the LLM judges relevance.
             const unrelatedQuery = 'Who won the 1998 soccer world cup in France?';
             const zeroVectors = [new Array(384).fill(0), new Array(384).fill(0)];
 
             const result = await hybridRetrieve(
                 unrelatedQuery,
                 mockChunks,
-                zeroVectors,
-                { scopeThreshold: 0.20 }
-            );
-
-            assert.strictEqual(result.isOutOfScope, true);
-            assert.strictEqual(result.chunks.length, 0);
-            assert.ok(result.reason?.includes('out of scope') || result.reason?.includes('BM25=0'));
-        });
-
-        it('bypasses out-of-scope refusal for meta-transformation queries', async () => {
-            const metaQuery = 'Can you explain this code simply?';
-            const zeroVectors = [new Array(384).fill(0), new Array(384).fill(0)];
-
-            const result = await hybridRetrieve(
-                metaQuery,
-                mockChunks,
-                zeroVectors,
-                { scopeThreshold: 0.20 }
+                zeroVectors
             );
 
             assert.strictEqual(result.isOutOfScope, false);
             assert.ok(result.chunks.length > 0);
         });
 
-        it('never marks follow-up suggestion chips like "What are the alternatives?" as out of scope', async () => {
+        it('passes explanation and follow-up questions through with retrieved chunks', async () => {
             const followUps = [
+                'Can you explain this code simply?',
                 'What are the alternatives?',
                 'Give me a simpler analogy',
                 'What are the edge cases?',
@@ -191,12 +159,24 @@ describe('Hybrid Retriever (src/rag/retriever.ts)', () => {
                 const result = await hybridRetrieve(
                     q,
                     mockChunks,
-                    zeroVectors,
-                    { scopeThreshold: 0.20 }
+                    zeroVectors
                 );
-                assert.strictEqual(result.isOutOfScope, false, `Query "${q}" should not be rejected as out of scope`);
+                assert.strictEqual(result.isOutOfScope, false, `Query "${q}" should reach the LLM`);
                 assert.ok(result.chunks.length > 0);
             }
+        });
+
+        it('accepts pre-tokenized chunk tokens without changing rankings', async () => {
+            const preTokenized = mockChunks.map(chunk => tokenizeCodeAndProse(chunk.text));
+            const result = await hybridRetrieve(
+                'getUserProfile',
+                mockChunks,
+                [vector0, vector1],
+                { topK: 2, preTokenizedChunks: preTokenized }
+            );
+
+            assert.strictEqual(result.isOutOfScope, false);
+            assert.strictEqual(result.chunks[0].chunk.id, 'chunk-0');
         });
     });
 });

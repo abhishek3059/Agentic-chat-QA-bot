@@ -24,8 +24,8 @@ export class CaptureManager {
       vscode.StatusBarAlignment.Right,
       100
     );
-    this.statusBarItem.text = '$(sparkle) Context Q&A';
-    this.statusBarItem.tooltip = 'Context Q&A: Open Console (or press Ctrl+Alt+Q to capture clipboard)';
+    this.statusBarItem.text = '$(sparkle) QA Assistant';
+    this.statusBarItem.tooltip = 'QA Assistant: Open Console (or press Ctrl+Alt+Q to capture clipboard)';
     this.statusBarItem.command = 'contextQa.openPanel';
     this.statusBarItem.show();
     this.disposables.push(this.statusBarItem);
@@ -39,7 +39,7 @@ export class CaptureManager {
 
         if (!trimmed) {
           vscode.window.showWarningMessage(
-            'Context Q&A: Clipboard is empty. Copy any AI response or text first, then press Ctrl+Alt+Q.'
+            'QA Assistant: Clipboard is empty. Copy any AI response or text first, then press Ctrl+Alt+Q.'
           );
           return;
         }
@@ -54,7 +54,7 @@ export class CaptureManager {
       () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
-          vscode.window.showWarningMessage('Context Q&A: No active editor with selected text.');
+          vscode.window.showWarningMessage('QA Assistant: No active editor with selected text.');
           return;
         }
 
@@ -62,7 +62,7 @@ export class CaptureManager {
         const text = editor.document.getText(selection).trim();
 
         if (!text) {
-          vscode.window.showWarningMessage('Context Q&A: Please select some text first.');
+          vscode.window.showWarningMessage('QA Assistant: Please select some text first.');
           return;
         }
 
@@ -75,7 +75,7 @@ export class CaptureManager {
       'contextQa.simulateCapture',
       async () => {
         const input = await vscode.window.showInputBox({
-          prompt: 'Paste or type AI response text to scope Context Q&A',
+          prompt: 'Paste or type AI response text to scope QA Assistant',
           placeHolder: 'Paste response text here...',
           ignoreFocusOut: true,
         });

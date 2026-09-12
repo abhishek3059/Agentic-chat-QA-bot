@@ -22,6 +22,9 @@ This document logs every key architectural and engineering decision made in **Ag
 - **ADR-014:** Frontier-Grade Conversational Engine, Real-Time SSE Streaming, and Intent Routing
 - **ADR-015:** Native VS Code UI Overhaul (Sidebar WebviewView)
 - **ADR-016:** Unified Context/Q&A Dynamic Input Pill & Model Selector
+- **ADR-017:** Removal of the Scope Pre-Check Guardrail (Filter Chunks, Not Questions)
+- **ADR-018:** Generation Cancellation Guard, LLM Retry & ONNX Pre-Warm
+- **ADR-019:** Rename to QA Assistant + Bracket-Node Mark & Theme-Linked Watermark
 
 ---
 
@@ -211,3 +214,75 @@ This document logs every key architectural and engineering decision made in **Ag
 * **Context:** The initial sidebar design included a collapsible "Context Ingestion" drawer at the top and a chat input at the bottom. Users found having two separate text areas confusing. Furthermore, the model selection was buried in settings.
 * **Decision:** Consolidate inputs into a single, sleek dynamic "pill" at the bottom of the sidebar. The UI statefully toggles between "Context Mode" (waiting for paste/scope) and "Q&A Mode" based on the internal presence of a scoped RAG context. Incorporate a direct model selector chip inside the pill that syncs with `contextQa.modelName` via `showInputBox`.
 * **Rationale:** Drastically simplifies user interaction flow. The dynamic state machine ensures users cannot mistakenly ask questions without context, and making the model visible/clickable builds trust.
+
+---
+
+### ADR-017: Removal of the Scope Pre-Check Guardrail (Filter Chunks, Not Questions)
+* **Date:** 2026-09-12
+* **Status:** Accepted
+* **Context:** The retriever rejected questions before any LLM call when $\max(\text{Cosine}) < 0.20$ AND $\text{BM25} = 0$ AND the query was not an `isMetaQuery()` regex match (30+ patterns). The user demonstrated the failure mode: capturing a Redis pooling response and asking *"Explain this in simpler terms"* — a question that is the entire point of the extension — risked rejection whenever keyword/semantic overlap was low. Council Meeting 2 (`docs/council-meetings/meetings_2.md`) debated removal 3-to-1.
+* **Options Considered:**
+  1. *Keep the gate, widen bypasses:* Add more regex patterns. Rejected — open-closed violation; every new phrasing needs a patch.
+  2. *Lower the threshold (0.20 → 0.10/0.12):* Reduces false rejections but keeps the brittle mechanism.
+  3. *Remove the gate entirely:* All questions reach the LLM when context exists; the system prompt's refusal rule becomes the single relevance judge.
+* **Decision:** Option 3. Deleted `isMetaQuery()`, `DEFAULT_SCOPE_THRESHOLD`, and the pre-check block from `src/rag/retriever.ts`. Removed the `isOutOfScope` early-exit from `src/ui/SidebarProvider.ts`. Strengthened the refusal wording in `src/llm/prompt.ts` so the model discloses when context does not address the question instead of silently answering from general knowledge. `isOutOfScope` remains in `RetrievalResult` as always-`false` for interface compatibility.
+* **Rationale:**
+  1. **Prior art:** NotebookLM, Perplexity, and ChatGPT file upload never gate questions — they filter *chunks*, not *questions*.
+  2. **Research consensus:** Self-RAG, CRAG, ScoreGate — *"low embedding similarity does not exclude relevance."*
+  3. **Cost:** One extra LLM call (~$0.001 on DeepSeek) is negligible next to false-rejection frustration.
+  4. **Simplicity:** ~90 lines of heuristic logic and 30+ regex patterns deleted; nothing left to curate.
+
+---
+
+### ADR-018: Generation Cancellation Guard, LLM Retry & ONNX Pre-Warm
+* **Date:** 2026-09-12
+* **Status:** Accepted
+* **Context:** Council Meeting 1 flagged three reliability gaps: (1) a new capture while indexing/generation is in-flight leaves stale vectors in play, so answers can ground in the wrong context; (2) a single 429/5xx from free-tier endpoints kills the session with no retry; (3) the first query pays the full ONNX model download + session-init cost (5–15s) with no pre-warming.
+* **Decision:**
+  1. **Cancellation guard:** Monotonic `generationCounter` in `SidebarProvider` — incremented on every `setCapturedResponse`, snapshotted at the start of `handleUserQuestion`, checked before rendering results. Stale generations are discarded silently.
+  2. **Retry with exponential backoff:** Up to 3 attempts for 429/5xx (1s, 2s, 4s + jitter) in both `generateAnswer` and `generateAnswerStreaming`. Never retry 401.
+  3. **ONNX pre-warm:** Fire-and-forget `getEmbeddingPipeline()` in `activate()` with `try/catch` + log.
+  4. **Embedding-failure surfacing:** The `embedChunks` catch block now posts a visible webview warning instead of only `console.error`; retrieval degrades to BM25-only visibly.
+  5. **Tokenized-chunk cache:** `tokenizeCodeAndProse()` results are cached at capture time and passed into `computeBM25Scores` via an optional parameter, avoiding re-tokenization on every query.
+* **Rationale:** Each fix is small, independently testable, and converts a silent failure (wrong context, dead session, cold-start freeze, invisible degradation, wasted CPU) into correct or visible behavior. None change the pipeline architecture.
+
+---
+
+### ADR-019: Rename to QA Assistant + Bracket-Node Mark & Theme-Linked Watermark
+* **Date:** 2026-09-12
+* **Status:** Accepted
+* **Context:** Final pre-ship phase. The product name "Agentic Chat Q&A Bot" was long and unclear in the sidebar; the user requested "QA Assistant". The extension also had no visual identity — the activity-bar container used `$(comment-discussion)`, which is not a valid `viewsContainers` icon (file path required), and the chat UI was unbranded. Council Meeting 3 (`docs/council-meetings/meetings_3.md`) settled scope and design 4-way.
+* **Decision:**
+  1. **Display strings only:** `displayName`, container/view titles, command titles, config title, webview `<title>`, bot card header, status bar text, notification/log prefixes → "QA Assistant". Frozen: extension id (`agentic-chat-qa-bot`), `contextQa.*` commands/config, view/container ids (API contract — renaming breaks keybindings, `when` clauses, stored settings).
+  2. **Mark concept:** open bracket isolating a fragment + one solid node = "one piece, resolved." Square `viewBox 0 0 64 64`, `currentColor`, one 7-unit stroke weight, no bubbles/bulbs/sparkles.
+  3. **Single source of truth:** `src/ui/qaMark.ts` exports `QA_MARK_INNER` + `qaMarkSvg()`. Inlined into `webviewHtml.ts` twice (16px header icon, 12px card headers, 300px watermark) — zero CSP/loader changes, since `data:`-URI backgrounds are blocked by `default-src 'none'` and `<img>`+`asWebviewUri` needs extra plumbing.
+  4. **Standalone copies:** `media/qa-mark.svg` (also serves as the real activity-bar container icon) and `media/watermark-demo.html` (dark+light proof panels) carry the exact markup, stamped as generated from `qaMark.ts`.
+  5. **Watermark hardening:** fixed, bottom-right cropped (`right/bottom: -70px`), opacity 0.05, `pointer-events: none`, `aria-hidden`, chat stacked above (`z-index: 1`), hidden under `forced-colors`, no animation.
+* **Rationale:** Inline SVG satisfies the strict webview CSP with no new infrastructure; the file-backed copy fixes the invalid container icon at the same time; bottom-cropped placement plus the forced-colors kill-switch keeps the watermark atmospheric without ever taxing legibility.
+
+---
+
+### ADR-020: Provider Presets + Live Model Picker (Phase E)
+* **Date:** 2026-09-12
+* **Status:** Accepted
+* **Context:** Phase C smoke-test feedback exposed three gaps: (1) the API-key prompt hardcoded "OpenRouter or DeepSeek" while the generator was already provider-agnostic; (2) the model selector was a blind free-text input; (3) no way to pick a provider outside raw base-URL editing. Plan: `.opencode/plans/PROVIDER-UX-PLAN.md` (phases E1–E3).
+* **Decision:**
+  1. **Provider presets, one table:** `src/llm/providers.ts` holds the single preset table (OpenAI, OpenRouter, DeepSeek, Ollama + custom slot) with pure resolver functions (`resolveBaseUrl`, `resolveModelsUrl`, `providerNeedsKey`, `resolveExtraHeaders`, `listProviderOptions`). New `contextQa.provider` enum setting renders as a Settings-UI dropdown; `contextQa.apiBaseUrl` is now custom-only (default `""`).
+  2. **Generator stays URL-blind:** it receives only a resolved base URL. OpenRouter-only `HTTP-Referer`/`X-Title` headers moved behind `resolveExtraHeaders()` so unknown vendors never see them.
+  3. **Live model list, graceful fallback:** `src/llm/modelList.ts` fetches `GET {base}/models` (8s timeout, never throws — null on any failure). The sidebar selector opens an in-webview dropdown with loading spinner, filter box, display names, and current-model highlight; fetch failure falls back to free-text entry. New messages: `fetchModels` → `modelsLoading` / `modelsList` / `modelsError`; `changeModel` accepts an optional `modelId`.
+  4. **API key stays in SecretStorage** — only the prompt text was de-branded. New `contextQa.configureProvider` command + a config-change watcher that refreshes the sidebar on Settings edits.
+* **Rationale:** All four providers share the `data[].id` list shape, so one fetcher covers every current and future OpenAI-compatible endpoint; keeping the key in SecretStorage preserves the project's strongest security property while the provider dropdown removes the misleading hardcoding. Deviations from the plan: unknown provider ids fall back to the OpenRouter preset (never an empty URL); the picker opens **upward** (`bottom: 100%`) because the trigger lives in the bottom footer; timeout uses AbortController (extension-host compatible) instead of `AbortSignal.timeout`; a `model-filter` input was added for 400-item OpenRouter lists.
+
+---
+
+### ADR-021: Model Picker Search + Pin (Phase F, Council Meeting 4)
+* **Date:** 2026-09-12
+* **Status:** Accepted
+* **Context:** OpenRouter returns 400+ models; the flat list felt overwhelming. Council Meeting 4 (`docs/council-meetings/meetings_4.md`) + industry research (Cline, Roo Code, Continue, Copilot) showed the proven pattern is **search + pin**, not filter + group — no major extension excludes models from the list.
+* **Decision:**
+  1. **No exclusion rules.** Every fetched model stays visible; relevance is a presentation concern (search narrowing + favorites on top), never a data concern.
+  2. **Debounced re-render search** (150ms) over `id` + `name`, replacing the old DOM hide/show filter — re-render is required anyway to sort favorites first.
+  3. **Star/pin favorites** (☆/★, theme-safe text glyphs) persisted via `vscode.getState()`/`setState()`; favorites sort above the rest, still subject to the active query.
+  4. **Count badge** ("47 of 312 models") so the list size is visible; autofocus on the search box (or free-text input on fetch failure).
+  5. **Zero backend changes** — fetcher, parser, and message protocol untouched.
+* **Rationale:** Filtering risks invisible exclusion (Skeptic) and curated lists rot (pricing/catalog churn); grouping adds structure Cline users never asked for. Search + pin is the industry-settled pattern with the smallest code footprint (~60 lines, webview-only). OpenRouter server-side params (`sort=most-popular`, etc.) stay a documented future option. Deviation from the plan: skipped the × clear-filter button — Escape closes the dropdown, keeping the DOM minimal.

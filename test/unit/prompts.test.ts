@@ -8,7 +8,7 @@ import {
     buildIntentDirective,
     TEMPERATURE_PROFILES
 } from '../../src/llm/prompt';
-import { isApiKeyConfigured, GeneratorError, DEFAULT_TOP_P } from '../../src/llm/generator';
+import { isApiKeyConfigured, GeneratorError, DEFAULT_TOP_P, isRetryableStatus, DEFAULT_MAX_RETRIES } from '../../src/llm/generator';
 import { ScoredChunk } from '../../src/rag/types';
 
 describe('Prompt Engine & Generator Client (src/llm/)', () => {
@@ -19,6 +19,17 @@ describe('Prompt Engine & Generator Client (src/llm/)', () => {
             assert.ok(SYSTEM_INSTRUCTION.includes('NO CITATION MARKERS'));
             assert.ok(SYSTEM_INSTRUCTION.includes('NO ARTIFICIAL ZONE CARDS'));
             assert.ok(SYSTEM_INSTRUCTION.includes('RESPONSE STYLE EXAMPLES'));
+        });
+
+        it('makes the LLM the single relevance judge (ADR-017)', () => {
+            assert.ok(
+                SYSTEM_INSTRUCTION.includes("doesn't cover this directly"),
+                'Model must disclose when context does not address the question'
+            );
+            assert.ok(
+                SYSTEM_INSTRUCTION.includes('always in scope'),
+                'Explanations, summaries, and alternatives about the context must be in scope'
+            );
         });
     });
 
@@ -192,6 +203,16 @@ describe('Prompt Engine & Generator Client (src/llm/)', () => {
             assert.strictEqual(err.statusCode, 401);
             assert.strictEqual(err.responseBody, '{"error":"invalid_key"}');
             assert.strictEqual(err.name, 'GeneratorError');
+        });
+
+        it('retries only transient failures (ADR-018)', () => {
+            assert.strictEqual(DEFAULT_MAX_RETRIES, 3);
+            assert.strictEqual(isRetryableStatus(429), true, 'Rate limits are retryable');
+            assert.strictEqual(isRetryableStatus(500), true, 'Server errors are retryable');
+            assert.strictEqual(isRetryableStatus(503), true, 'Service unavailable is retryable');
+            assert.strictEqual(isRetryableStatus(401), false, 'Auth failures must never retry');
+            assert.strictEqual(isRetryableStatus(400), false, 'Client errors must never retry');
+            assert.strictEqual(isRetryableStatus(200), false, 'Success is not retryable');
         });
     });
 });

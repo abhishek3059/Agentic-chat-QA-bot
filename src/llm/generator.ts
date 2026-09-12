@@ -8,6 +8,7 @@
  */
 
 import { ChatMessage } from './prompt';
+import { resolveExtraHeaders } from './providers';
 
 export interface GeneratorOptions {
     apiBaseUrl: string;
@@ -21,6 +22,64 @@ export interface GeneratorOptions {
 export const DEFAULT_TEMPERATURE = 0.45;
 export const DEFAULT_TOP_P = 0.92;
 export const DEFAULT_TIMEOUT_MS = 60000; // 60 seconds
+export const DEFAULT_MAX_RETRIES = 3; // total attempts for retryable failures (ADR-018)
+const RETRY_BASE_DELAY_MS = 1000;
+
+/**
+ * Returns true for transient failures worth retrying (rate limits, server errors).
+ * Authentication failures (401) and client errors are never retried.
+ */
+export function isRetryableStatus(status: number): boolean {
+    return status === 429 || status >= 500;
+}
+
+/**
+ * Sleeps with exponential backoff + jitter: 1s, 2s, 4s (+ up to 500ms jitter).
+ */
+function backoffDelay(attempt: number): Promise<void> {
+    const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 500;
+    return new Promise(resolve => setTimeout(resolve, delay));
+}
+
+/**
+ * POSTs to the chat-completions endpoint, retrying transient 429/5xx responses
+ * and network errors. AbortError (timeout/cancel) is never retried.
+ */
+async function fetchWithRetry(
+    endpoint: string,
+    init: RequestInit,
+    maxRetries: number = DEFAULT_MAX_RETRIES
+): Promise<Response> {
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const response = await fetch(endpoint, init);
+            if (!isRetryableStatus(response.status) || attempt === maxRetries - 1) {
+                return response;
+            }
+            // Drain the retryable response body before the next attempt.
+            try { await response.text(); } catch { /* ignore drain errors */ }
+            lastError = new GeneratorError(
+                `LLM provider transient error (${response.status}).`,
+                response.status
+            );
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name === 'AbortError') {
+                throw err;
+            }
+            lastError = err;
+        }
+
+        if (attempt < maxRetries - 1) {
+            await backoffDelay(attempt);
+        }
+    }
+
+    throw lastError instanceof Error
+        ? lastError
+        : new GeneratorError('LLM request failed after retries.');
+}
 
 export class GeneratorError extends Error {
     constructor(
@@ -69,13 +128,12 @@ export async function generateAnswer(
     };
 
     try {
-        const response = await fetch(endpoint, {
+        const response = await fetchWithRetry(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${trimmedKey}`,
-                'HTTP-Referer': 'https://github.com/abhishek3059/Agentic-chat-QA-bot',
-                'X-Title': 'Agentic Chat Q&A Bot'
+                ...resolveExtraHeaders(baseUrl)
             },
             body: JSON.stringify(payload),
             signal: controller.signal
@@ -183,13 +241,12 @@ export async function generateAnswerStreaming(
     };
 
     try {
-        const response = await fetch(endpoint, {
+        const response = await fetchWithRetry(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${trimmedKey}`,
-                'HTTP-Referer': 'https://github.com/abhishek3059/Agentic-chat-QA-bot',
-                'X-Title': 'Agentic Chat Q&A Bot'
+                ...resolveExtraHeaders(baseUrl)
             },
             body: JSON.stringify(payload),
             signal: controller.signal

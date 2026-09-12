@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🤖 Agentic Chat Q&A Bot
+# 🤖 QA Assistant
 
 ### *Universal Scoped RAG & Contextual Q&A Console for AI Agent Responses*
 
@@ -14,16 +14,44 @@
   <b>Eliminate context dilution, prevent AI hallucinations, and interrogate complex agent responses inside an isolated, mathematically grounded RAG sandbox.</b>
 </p>
 
+[Install](#-install) •
+[Getting Started](#-getting-started-in-2-minutes) •
 [Key Advantages](#-why-agentic-chat-qa-bot) •
 [Architecture](#-system-architecture) •
 [Quick Start](#-quick-start) •
 [How It Works](#-how-it-works) •
 [Configuration](#-configuration) •
+[What's New](#-whats-new) •
 [Documentation](#-documentation-index)
 
 </div>
 
 ---
+
+## 📦 Install
+
+- **From the Marketplace:** search **“QA Assistant”** in the Extensions view
+  (`Ctrl+Shift+X`) and click Install — or install the `.vsix` via
+  `code --install-extension agentic-chat-qa-bot-<version>.vsix`.
+- **Requirements:** VS Code `v1.85.0` or higher (also runs on Antigravity,
+  Cursor, and Windsurf). An LLM provider API key, unless you use local Ollama.
+
+---
+
+## 🚀 Getting Started in 2 Minutes
+
+After install, open the **Welcome → Get Started** page for the interactive
+**“Get Started with QA Assistant”** walkthrough, or follow these steps:
+
+1. **Choose your provider** — Command Palette → `QA Assistant: Configure LLM Provider`
+   (OpenAI, OpenRouter, DeepSeek, Ollama, or a Custom OpenAI-compatible endpoint).
+2. **Save your API key** — Command Palette → `QA Assistant: Set LLM API Key`
+   (stored in encrypted SecretStorage; not needed for Ollama).
+3. **Capture a response** — copy any AI agent reply, then press `Ctrl+Alt+Q`
+   (`Cmd+Alt+Q` on Mac).
+4. **Ask away** — try *“Explain this simpler”*. Click the model name in the
+   sidebar footer to browse your provider's live model list (search + ☆ pin
+   favorites).
 
 ## ⚡ The Problem: Context Drift & Lost Context in Modern AI IDEs
 
@@ -44,7 +72,7 @@ When developers need to ask follow-up questions about that *specific* output, as
 * **Capture Any AI Response in 1-Click:** Grab any response turn instantly via `Ctrl+Alt+Q` (or `Cmd+Alt+Q`), status bar icon, right-click context menu, or the Sidebar paste button.
 * **100% Local, Offline Embeddings:** Embedded directly on your CPU via `@xenova/transformers` (`all-MiniLM-L6-v2` running on WebAssembly/ONNX). **Zero code or text is ever transmitted over the network for embedding.**
 * **In-Memory Hybrid Retrieval:** Sub-tokenized BM25 keyword search + dense vector cosine similarity fused with **Reciprocal Rank Fusion (RRF)** in $< 0.5\text{ms}$.
-* **Scope Guardrail Short-Circuit:** Automatically detects off-topic queries before making an LLM API call, preventing wasted tokens and irrelevant answers.
+* **LLM-Level Relevance Handling:** Every question reaches the model with retrieved context; the system prompt instructs it to say plainly when the context doesn't cover the question instead of answering from undisclosed general knowledge.
 * **Frontier-Grade Conversational Delivery:** Eliminates robotic boilerplate preambles, artificial split cards, and bracketed citation clutter. Delivers direct senior-engineer answers, syntax-safe code with proactive gotchas, and real-time SSE token streaming.
 
 ---
@@ -77,11 +105,14 @@ Built purely on standard, supported VS Code Extension APIs. Runs seamlessly acro
 - **Windsurf**
 
 ### 🧠 Bring Your Own Model (BYOM)
-Connects to any OpenAI-compatible chat completion endpoint:
+Connects to any OpenAI-compatible chat completion endpoint. Pick a provider from
+**Settings → QA Assistant → Provider** (or the `QA Assistant: Configure LLM Provider`
+command), set your key, then click the model name in the sidebar to browse that
+provider's live model list:
 - **OpenRouter** (DeepSeek V3/R1, Llama 3.3, Claude 3.5/3.7, Mistral)
 - **DeepSeek API** directly
 - **Local LLMs** via Ollama, LM Studio, or vLLM
-- **OpenAI / Azure OpenAI**
+- **OpenAI / Azure OpenAI** (via Custom endpoint)
 
 ---
 
@@ -107,19 +138,18 @@ flowchart TD
         Chunks --> BMIndex[("Sub-tokenized BM25 Index")]
     end
 
-    subgraph Retrieval ["4. Intent-Aware Retrieval & Scope Gate"]
+    subgraph Retrieval ["4. Intent-Aware Retrieval (No Question Gate)"]
         UQ["Developer Question"] --> Intent["Classifier (factual | explain | code | meta)"]
         Intent --> AdaptiveK["Adaptive topK (2 to 5)"]
         UQ --> QEmb["Query Vector"]
         UQ --> QTokens["Sub-Tokenized Query"]
-        
+
         QEmb & VStore --> Cosine["Vector Cosine Scoring"]
         QTokens & BMIndex --> BM25["BM25 Keyword Scoring"]
-        
-        Cosine & BM25 --> Gate{"Scope Pre-Check<br/>Max Cosine < 0.20 & BM25 = 0<br/>& Not Meta-Query?"}
-        Gate -- "Out of Scope" --> Refuse["Fast Guardrail Banner<br/>(Zero API Cost)"]
-        Gate -- "In Scope" --> RRF["Reciprocal Rank Fusion (RRF)<br/>Adaptive topK"]
+
+        Cosine & BM25 --> RRF["Reciprocal Rank Fusion (RRF)<br/>Adaptive topK"]
         RRF --> TopK["Top-K Relevant Chunks"]
+        Note["Every question reaches the LLM;<br/>relevance handled by system prompt"]
     end
 
     subgraph Generation ["5. Frontier-Grade Generation"]
@@ -180,12 +210,13 @@ npm test
 
 ## ⚙️ Configuration
 
-You can configure settings in your VS Code `settings.json` or via the **Settings UI** under **Context Q&A**:
+You can configure settings in your VS Code `settings.json` or via the **Settings UI** under **QA Assistant**:
 
 | Setting Key | Default Value | Description |
 |---|---|---|
-| `contextQa.apiBaseUrl` | `https://openrouter.ai/api/v1` | Base URL for OpenAI-compatible completions API |
-| `contextQa.modelName` | `deepseek/deepseek-chat` | Model identifier to call for answer generation |
+| `contextQa.provider` | `openrouter` | LLM provider dropdown: `openai`, `openrouter`, `deepseek`, `ollama`, or `custom` |
+| `contextQa.apiBaseUrl` | `""` (empty) | Base URL override — only used when provider is `custom`; presets resolve automatically |
+| `contextQa.modelName` | `deepseek/deepseek-chat` | Model identifier to call for answer generation (or pick from the sidebar model list) |
 | `contextQa.topK` | `3` | Base number of context chunks (adapted dynamically 2–5 by intent) |
 | `contextQa.maxTokensPerChunk` | `200` | Target token ceiling per chunk for embedding alignment |
 | `contextQa.temperature` | `0.45` | Global temperature override (defaults to calibrated intent profiles if 0.45) |
@@ -195,9 +226,16 @@ You can configure settings in your VS Code `settings.json` or via the **Settings
 ### Setting Your API Key Securely
 Run the VS Code command:
 ```
-Context Q&A: Set LLM API Key
+QA Assistant: Set LLM API Key
 ```
-Keys are stored exclusively in VS Code's encrypted **`SecretStorage`** and are never logged or committed to disk.
+Keys are stored exclusively in VS Code's encrypted **`SecretStorage`** and are never logged or committed to disk. No key is needed for local Ollama.
+
+To switch providers, run `QA Assistant: Configure LLM Provider` or change
+**Settings → QA Assistant → Provider**. Changing provider or base URL refreshes
+the sidebar automatically; click the model name there to fetch that provider's
+available models. Type in the search box to narrow large lists (e.g. OpenRouter's
+400+ models), and click the ☆ star to pin favorites to the top — pins persist
+across sessions.
 
 ---
 
@@ -209,7 +247,16 @@ Keys are stored exclusively in VS Code's encrypted **`SecretStorage`** and are n
 | `contextQa.openPanel` | — | Open the Context Q&A Agent Console |
 | `contextQa.askAboutSelection` | Right-Click Menu | Send highlighted editor code/text to the Q&A Console |
 | `contextQa.setApiKey` | — | Securely configure LLM API key in `SecretStorage` |
+| `contextQa.configureProvider` | — | Pick the LLM provider (OpenAI, OpenRouter, DeepSeek, Ollama, Custom) |
 | `contextQa.simulateCapture` | — | Manually paste or type test context into the console |
+
+---
+
+## 🆕 What's New
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes. Current version: **0.1.0**
+— scoped Q&A console, local hybrid RAG, multi-provider support with live model
+picker, and the Get Started walkthrough.
 
 ---
 
@@ -232,7 +279,7 @@ The repository contains comprehensive technical documentation:
 - **Zero Telemetry:** No analytics, user tracking, or metrics collection.
 - **Local Embeddings:** Embedding calculations take place 100% offline on your device.
 - **Encrypted Key Storage:** API keys are never stored in plain text or settings files; they reside in operating system keychains via VS Code `SecretStorage`.
-- **Grounded Scope Enforcement:** The system short-circuits unrelated questions to prevent unnecessary data transfer to LLM providers.
+- **Grounded Relevance Handling:** The system prompt requires the model to disclose when retrieved context doesn't cover a question, instead of silently answering from general knowledge.
 
 ---
 

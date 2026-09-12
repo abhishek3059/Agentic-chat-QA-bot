@@ -60,9 +60,8 @@ export interface RetrieverOptions {
     topk?: number;
     // CamelCase alias for topk
     topK?: number;
-    // Raw cosine similarity threshold for the scope pre-check.
-    // If max cosine is below this and BM25 is 0, query is marked out-of-scope.
-    // Default: 0.20
+    // Deprecated (ADR-017): the question-level scope pre-check was removed.
+    // Kept for interface compatibility; hybridRetrieve ignores this field.
     scopeThreshold?: number;
 }
 

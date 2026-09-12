@@ -1,0 +1,15 @@
+.gitignore
+.vscode/**
+.vscode-test/**
+.git/**
+src/**
+test/**
+docs/**
+scripts/**
+.agents/**
+.claude/**
+.opencode/**
+tsconfig.json
+**/*.map
+**/*.ts
+*.vsix

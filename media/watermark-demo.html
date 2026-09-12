@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<!--
+  QA Assistant watermark demo — COPY of the mark. Source of truth: src/ui/qaMark.ts.
+  Open directly in a browser. Proves: (1) the mark reads at 16-24px, (2) the same
+  currentColor mark works as a large faint fixed watermark behind scrolling chat
+  on BOTH dark and light themes without competing with text.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QA Assistant — watermark demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; font-size: 13px; padding: 24px;
+         background: #888; display: flex; gap: 24px; flex-wrap: wrap; }
+  h2 { font-size: 13px; margin-bottom: 8px; color: #fff; }
+
+  .sizes { background: #1e1e1e; color: #ccc; padding: 16px; border-radius: 8px;
+           display: flex; align-items: center; gap: 16px; }
+  .sizes span { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; }
+
+  /* ---- mock chat panel (shared structure, themed per instance) ---- */
+  .panel { position: relative; width: 300px; height: 420px; border-radius: 8px;
+           overflow: hidden; display: flex; flex-direction: column; }
+  .panel.dark  { background: #1e1e1e; color: #cccccc; }
+  .panel.light { background: #ffffff; color: #333333; }
+
+  .watermark { position: absolute; right: -70px; bottom: -70px; width: 300px; height: 300px;
+               opacity: 0.05; pointer-events: none; }
+  .thread { position: relative; z-index: 1; overflow-y: auto; padding: 12px;
+            display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .bubble { max-width: 90%; padding: 8px 10px; border-radius: 10px; line-height: 1.5; font-size: 12px; }
+  .dark .bubble.user  { align-self: flex-end; background: #0e639c; color: #fff; }
+  .dark .bubble.bot   { align-self: flex-start; background: #2d2d2d; color: #ccc;
+                        border: 1px solid #3e3e3e; }
+  .light .bubble.user { align-self: flex-end; background: #0060bf; color: #fff; }
+  .light .bubble.bot  { align-self: flex-start; background: #f3f3f3; color: #333;
+                        border: 1px solid #ddd; }
+  .bubble code { font-family: monospace; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div>
+  <h2>Mark at small sizes (currentColor)</h2>
+  <div class="sizes">
+    <span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="16" height="16" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M25 13 H15 V51 H25"/><path d="M33 25 H51"/><circle cx="42" cy="41" r="7.5" fill="currentColor" stroke="none"/></svg>16px</span>
+    <span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="20" height="20" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M25 13 H15 V51 H25"/><path d="M33 25 H51"/><circle cx="42" cy="41" r="7.5" fill="currentColor" stroke="none"/></svg>20px</span>
+    <span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="24" height="24" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M25 13 H15 V51 H25"/><path d="M33 25 H51"/><circle cx="42" cy="41" r="7.5" fill="currentColor" stroke="none"/></svg>24px</span>
+  </div>
+</div>
+
+<div>
+  <h2>Dark theme — watermark behind scrolling chat</h2>
+  <div class="panel dark">
+    <svg class="watermark" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M25 13 H15 V51 H25"/><path d="M33 25 H51"/><circle cx="42" cy="41" r="7.5" fill="currentColor" stroke="none"/></svg>
+    <div class="thread">
+      <div class="bubble user">What port does Redis run on?</div>
+      <div class="bubble bot">Redis listens on <code>6379</code> with a 60-second sliding TTL window.</div>
+      <div class="bubble user">Explain the sliding window simply.</div>
+      <div class="bubble bot">Think of it as a guest list with timestamps: every request signs in, and the bouncer only counts signatures from the last 60 seconds.</div>
+      <div class="bubble user">Show me the <code>isAllowed</code> code.</div>
+      <div class="bubble bot"><code>tx.zRemRangeByScore(key, 0, clearBefore); tx.zAdd(key, ...); tx.expire(key, windowSec);</code></div>
+      <div class="bubble user">What are the edge cases?</div>
+      <div class="bubble bot">Clock skew between nodes, and bursts exactly at the window boundary counting twice.</div>
+    </div>
+  </div>
+</div>
+
+<div>
+  <h2>Light theme — same watermark, same CSS</h2>
+  <div class="panel light">
+    <svg class="watermark" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M25 13 H15 V51 H25"/><path d="M33 25 H51"/><circle cx="42" cy="41" r="7.5" fill="currentColor" stroke="none"/></svg>
+    <div class="thread">
+      <div class="bubble user">What port does Redis run on?</div>
+      <div class="bubble bot">Redis listens on <code>6379</code> with a 60-second sliding TTL window.</div>
+      <div class="bubble user">Explain the sliding window simply.</div>
+      <div class="bubble bot">Think of it as a guest list with timestamps: every request signs in, and the bouncer only counts signatures from the last 60 seconds.</div>
+      <div class="bubble user">Show me the <code>isAllowed</code> code.</div>
+      <div class="bubble bot"><code>tx.zRemRangeByScore(key, 0, clearBefore); tx.zAdd(key, ...); tx.expire(key, windowSec);</code></div>
+      <div class="bubble user">What are the edge cases?</div>
+      <div class="bubble bot">Clock skew between nodes, and bursts exactly at the window boundary counting twice.</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
