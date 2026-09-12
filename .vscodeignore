@@ -9,6 +9,7 @@ scripts/**
 .agents/**
 .claude/**
 .opencode/**
+.github/**
 tsconfig.json
 **/*.map
 **/*.ts

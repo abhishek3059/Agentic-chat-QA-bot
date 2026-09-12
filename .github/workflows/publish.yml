@@ -1,0 +1,55 @@
+# Publishes the extension to the VS Code Marketplace on every version tag.
+#
+# Usage:
+#   1. Create a Marketplace PAT (Azure DevOps → User Settings → Personal Access
+#      Tokens → Marketplace → Manage) and save it as the `VSCE_PAT` repo secret
+#      (GitHub repo → Settings → Secrets and variables → Actions).
+#   2. Bump "version" in package.json, commit, then:
+#        git tag v0.1.1
+#        git push origin v0.1.1
+#   The workflow runs tests, packages the .vsix, publishes it, and attaches
+#   the .vsix to an auto-created GitHub Release.
+
+name: Publish to VS Code Marketplace
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Verify tag matches package.json version
+        shell: pwsh
+        run: |
+          $version = (node -p "require('./package.json').version")
+          if ("v$version" -ne "${{ github.ref_name }}") {
+            throw "Tag ${{ github.ref_name }} does not match package.json version v$version"
+          }
+
+      - run: npm ci
+      - run: npm test
+
+      - name: Package extension
+        run: npx @vscode/vsce package
+
+      - name: Publish to Marketplace
+        run: npx @vscode/vsce publish --pat ${{ secrets.VSCE_PAT }}
+
+      - name: Attach .vsix to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: '*.vsix'
+          generate_release_notes: true
