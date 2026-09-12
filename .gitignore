@@ -60,3 +60,6 @@ ehthumbs.db
 # Local Agent Skills & Customizations (Keep strictly local)
 .agents/
 .claude/
+
+# Personal files (resume, scratch notes) — never push to GitHub
+temp/
