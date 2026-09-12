@@ -16,6 +16,22 @@ entries — if a decision changes, add a new entry saying so and why.
 
 ---
 
+### [2026-09-12] Session 14 — Marketplace Icon + Test-Harness Fix
+
+**Built:**
+- `media/qa-icon.png` (128×128): dark rounded square (#1e1e2e, matches
+  galleryBanner) + light bracket-node mark, rasterized from `qa-mark.svg`
+  via a throwaway sharp install in TEMP (project deps untouched). Wired as
+  `"icon"` in package.json; vsce packages with zero warnings.
+- **Test-harness fix:** `npm test` broke — this mocha tries `import()` first
+  and Node 26's native type-stripping grabs `.ts` files but chokes (SyntaxError
+  isn't one of mocha's 3 require-fallback codes, so ts-node never runs).
+  Pinned `node --no-experimental-strip-types` in the test script; suite is
+  hermetic again. **72 passing**, vsix repackaged.
+**Next:** `vsce publish` (or publish via the Marketplace web UI with the .vsix).
+
+---
+
 ### [2026-09-12] Session 13 — Marketplace Prep: CHANGELOG + Walkthrough + README
 
 **Built:**
