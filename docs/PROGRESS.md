@@ -16,6 +16,20 @@ entries — if a decision changes, add a new entry saying so and why.
 
 ---
 
+### [2026-09-12] Session 15 — GitHub Actions Auto-Publish
+
+**Built:**
+- `.github/workflows/publish.yml`: on `v*` tags → verify tag matches
+  package.json version → `npm ci` → `npm test` → `vsce package` →
+  `vsce publish` (via `VSCE_PAT` secret) → `.vsix` attached to an
+  auto-created GitHub Release. No local packaging needed anymore.
+- Excluded `.github/` from the vsix via `.vscodeignore`.
+**User actions left:** (1) create Marketplace PAT (Azure DevOps → Personal
+  Access Tokens → Marketplace → Manage); (2) save as `VSCE_PAT` repo secret;
+  (3) `git tag v0.1.0 && git push origin v0.1.0` to fire the first publish.
+
+---
+
 ### [2026-09-12] Session 14 — Marketplace Icon + Test-Harness Fix
 
 **Built:**
