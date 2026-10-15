@@ -16,6 +16,31 @@ entries — if a decision changes, add a new entry saying so and why.
 
 ---
 
+### [2026-09-17] Session 16 — Marketplace README Rewrite
+
+**Built:**
+- Complete README.md rewrite for VS Code Marketplace presentation.
+  Replaced technical/GitHub-oriented README with concise, value-focused
+  copy that clearly explains WHY developers need this tool on top of
+  existing AI assistants (Copilot, ChatGPT, Cursor, Claude).
+- Key changes:
+  - Added "Why You Need This" section with Context Drift Trap problem
+  - Added comparison table (Current Tools vs QA Assistant)
+  - Added visual flow diagram showing Capture → Interrogate → Get Answers
+  - Removed architecture diagrams, math formulas, and dev-focused docs
+  - Shortened from 288 lines to ~150 lines for scannability
+  - Focused on benefits over features
+  - Added quick-start that works for non-technical users
+**Decided:** Marketplace README must serve a different purpose than GitHub
+  README. GitHub = developer docs (architecture, code, setup). Marketplace
+  = user acquisition (why, what, how-to). The old README was too clunky
+  for the Extensions panel preview — users need to understand value in
+  10 seconds, not 2 minutes.
+**Next:** Test by installing from Marketplace and verifying the README
+  renders well in the Extensions panel.
+
+---
+
 ### [2026-09-12] Session 15 — GitHub Actions Auto-Publish
 
 **Built:**
